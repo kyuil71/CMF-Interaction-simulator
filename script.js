@@ -1,3 +1,4 @@
+```javascript
 // Liquid GUI Micro-Interaction - Custom JS Logic
 
 const config = {
@@ -27,24 +28,36 @@ const svgMatrix = document.getElementById('svg-matrix');
 const themeBtn = document.getElementById('theme-btn');
 const themeIcon = document.getElementById('theme-icon');
 
-// 다크 테마 제어
 themeBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark-theme');
     const isDark = document.body.classList.contains('dark-theme');
     themeIcon.innerHTML = isDark 
-        ? '<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>' 
-        : '<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>' 
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
 });
 
-// 모바일 제어 사이드바 가시성
+// 서랍 제어 바인딩
 const sidebar = document.getElementById('sidebar');
-const sidebarToggleMobile = document.getElementById('sidebar-toggle-mobile');
-const sidebarCloseMobile = document.getElementById('sidebar-close-mobile');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebarClose = document.getElementById('sidebar-close');
 
-sidebarToggleMobile.addEventListener('click', () => sidebar.classList.remove('translate-x-full'));
-sidebarCloseMobile.addEventListener('click', () => sidebar.classList.add('translate-x-full'));
+function openSidebar() {
+    sidebar.classList.remove('translate-x-full');
+    sidebarOverlay.classList.remove('hidden');
+    setTimeout(() => sidebarOverlay.classList.add('opacity-100'), 10);
+}
 
-// 컴포넌트 셀렉터 탭 변경 핸들러
+function closeSidebar() {
+    sidebar.classList.add('translate-x-full');
+    sidebarOverlay.classList.remove('opacity-100');
+    setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+}
+
+sidebarToggle.addEventListener('click', openSidebar);
+sidebarClose.addEventListener('click', closeSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+
 function selectComponent(idx, elementId) {
     activeComponentIdx = idx;
     document.getElementById('active-component-title').innerText = titles[idx];
@@ -57,16 +70,20 @@ function selectComponent(idx, elementId) {
 
     document.querySelectorAll('.comp-nav-btn').forEach((btn, bIdx) => {
         if (bIdx === idx) {
-            btn.className = "comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-sky-400/30 text-sky-500 bg-sky-500/10 hover:bg-sky-500/20 transition-all";
+            btn.className = "comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-sky-400/30 text-sky-500 bg-sky-500/10 hover:bg-sky-500/20 transition-all";
         } else {
-            btn.className = "comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all";
+            btn.className = "comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all";
         }
     });
 
     adaptPhysicsPreset(idx);
+    
+    // 모바일일 경우 컴포넌트 스위칭 후 서랍을 자동으로 접어 감상에 집중할 수 있도록 처리합니다.
+    if(window.innerWidth < 768) {
+        closeSidebar();
+    }
 }
 
-// 컴포넌트별 권장 물리적 상수 가중치 연동
 function adaptPhysicsPreset(idx) {
     if (idx === 0) {
         updateSlider('viscosity', 14);
@@ -102,7 +119,7 @@ function updateSlider(id, val) {
     }
 }
 
-// 1. [TAB NAV] 인터랙션 컨트롤
+// 1. [TAB NAV] 상호작용
 function switchTab(btn, index) {
     const tabs = document.querySelectorAll('.tab-item');
     const indicator = document.getElementById('tab-indicator');
@@ -117,30 +134,30 @@ function switchTab(btn, index) {
         }
     });
 
-    const leftOffset = 10 + (index * 105);
+    const leftOffset = 12 + (index * 80); // 탭 정밀 좌표 매칭
     
     if (config.viscosity > 0) {
-        const currentLeft = parseFloat(indicator.style.left) || 10;
+        const currentLeft = parseFloat(indicator.style.left) || 12;
         const isForward = leftOffset > currentLeft;
         const distance = Math.abs(leftOffset - currentLeft);
         
-        const stretchWidth = 90 + (distance * config.spring * 0.4);
+        const stretchWidth = 68 + (distance * config.spring * 0.4);
         indicator.style.width = `${stretchWidth}px`;
         if (!isForward) {
             indicator.style.left = `${leftOffset}px`;
         }
         
         setTimeout(() => {
-            indicator.style.width = '90px';
+            indicator.style.width = '68px';
             indicator.style.left = `${leftOffset}px`;
         }, config.snap * 500);
     } else {
-        indicator.style.width = '90px';
+        indicator.style.width = '68px';
         indicator.style.left = `${leftOffset}px`;
     }
 }
 
-// 2. [PULL REFRESH] 제어 바인딩
+// 2. [PULL REFRESH] 터치 드래그 물리 로직
 const pullContainer = document.getElementById('pull-container');
 const pullFluid = document.getElementById('pull-fluid');
 const spinnerIcon = document.getElementById('spinner-icon');
@@ -164,7 +181,7 @@ function handlePullMove(e) {
 
     if (deltaY > 0) {
         const limit = config.pull;
-        const dampingFactor = 1 - (config.damping * 0.4);
+        const dampingFactor = 1 - (config.damping * 0.45);
         pullDist = Math.min(deltaY * dampingFactor, limit);
 
         const scaleX = 1 - (pullDist / limit) * 0.45 * (config.viscosity / 20);
@@ -223,30 +240,24 @@ function resetPullState() {
     pullFluid.style.height = `${config.size}px`;
 }
 
-// 물리 라우팅 조작
+// 이벤트 인터셉트 방지 전용 셋
 pullContainer.addEventListener('mousedown', handlePullStart);
-window.addEventListener('mousemove', handleMoveRouter);
-window.addEventListener('mouseup', handleEndRouter);
+pullContainer.addEventListener('touchstart', handlePullStart, { passive: true });
 
-pullContainer.addEventListener('touchstart', handlePullStart);
-window.addEventListener('touchmove', handleMoveRouter, { passive: false });
-window.addEventListener('touchend', handleEndRouter);
-
-function handleMoveRouter(e) {
-    if (activeComponentIdx === 1) {
-        if (!sidebar.contains(e.target)) {
-            if (e.cancelable) e.preventDefault();
-            handlePullMove(e);
-        }
+window.addEventListener('mousemove', (e) => {
+    if (activeComponentIdx === 1 && isPulling) handlePullMove(e);
+});
+window.addEventListener('touchmove', (e) => {
+    if (activeComponentIdx === 1 && isPulling) {
+        if (e.cancelable) e.preventDefault();
+        handlePullMove(e);
     }
-}
-function handleEndRouter() {
-    if (activeComponentIdx === 1) {
-        handlePullEnd();
-    }
-}
+}, { passive: false });
 
-// 3. [MERCURY SWITCH] 물리 작동
+window.addEventListener('mouseup', handlePullEnd);
+window.addEventListener('touchend', handlePullEnd);
+
+// 3. [MERCURY SWITCH] 수은 스냅 토글
 let isToggled = false;
 function toggleSwitch() {
     isToggled = !isToggled;
@@ -313,7 +324,7 @@ fabBtn.addEventListener('click', (e) => {
             sub.style.width = `${config.size * 0.9}px`;
             sub.style.height = `${config.size * 0.9}px`;
             const angle = (Math.PI / 2) * (i / 2) + Math.PI; 
-            const dist = 80 + (config.wobble * 0.8);
+            const dist = 74 + (config.wobble * 0.8);
             const tx = Math.cos(angle) * dist;
             const ty = Math.sin(angle) * dist;
 
@@ -324,7 +335,6 @@ fabBtn.addEventListener('click', (e) => {
     });
 });
 
-// 5. 실시간 물리 설정 브릿지 인터페이스
 const setupPhysicsController = (id) => {
     const el = document.getElementById(id);
     const valLabel = document.getElementById('v-' + id);
@@ -380,7 +390,6 @@ function resetPhysics() {
     resetPullState();
 }
 
-// 6. 현재 수치 보존형 완제품 단독 구동 코드 클립보드 패키징
 function copyComponentCode() {
     let componentMarkup = "";
     let componentScript = "";
@@ -390,13 +399,20 @@ function copyComponentCode() {
 
     if (activeComponentIdx === 0) { 
         componentMarkup = `
-    <div class="gooey-container bg-slate-100 p-2.5 rounded-[28px] relative flex justify-between items-center w-full max-w-md">
-        <div id="tab-indicator" class="absolute h-[48px] w-[90px] rounded-[20px] transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); left: 10px;"></div>
-        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold rounded-[20px] text-white flex-1 text-center" onclick="switchTab(this, 0)">Home</button>
-        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold text-slate-400 flex-1 text-center" onclick="switchTab(this, 1)">Explore</button>
-        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold text-slate-400 flex-1 text-center" onclick="switchTab(this, 2)">Messages</button>
+    <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 p-1.5 relative border border-slate-200/40 overflow-hidden">
+        <div class="gooey-container absolute inset-0 w-full h-full pointer-events-none">
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[34px]"></div>
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[114px]"></div>
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[194px]"></div>
+            <div id="tab-indicator" class="absolute h-[42px] w-[68px] rounded-[16px] top-1.5 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); left: 12px;"></div>
+        </div>
+        <div class="absolute inset-0 w-full h-full flex justify-between items-center px-3 z-10">
+            <button class="tab-item text-xs font-bold text-white flex-1 text-center" onclick="switchTab(this, 0)">Home</button>
+            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 1)">Explore</button>
+            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 2)">Messages</button>
+        </div>
     </div>`;
-        componentScript = `
+                componentScript = `
         const config = {
             viscosity: ${config.viscosity},
             spring: ${config.spring},
@@ -409,27 +425,27 @@ function copyComponentCode() {
             tabs.forEach((tab, i) => {
                 tab.style.color = (i === index) ? '#fff' : '#94a3b8';
             });
-            const leftOffset = 10 + (index * 105);
+            const leftOffset = 12 + (index * 80);
             if (config.viscosity > 0) {
-                const currentLeft = parseFloat(indicator.style.left || 10);
+                const currentLeft = parseFloat(indicator.style.left || 12);
                 const distance = Math.abs(leftOffset - currentLeft);
-                const stretchWidth = 90 + (distance * config.spring * 0.4);
+                const stretchWidth = 68 + (distance * config.spring * 0.4);
                 indicator.style.width = stretchWidth + "px";
                 if (leftOffset < currentLeft) indicator.style.left = leftOffset + "px";
                 setTimeout(() => {
-                    indicator.style.width = '90px';
+                    indicator.style.width = '68px';
                     indicator.style.left = leftOffset + "px";
                 }, config.snap * 500);
             } else {
-                indicator.style.width = '90px';
+                indicator.style.width = '68px';
                 indicator.style.left = leftOffset + "px";
             }
         }`;
-    } else if (activeComponentIdx === 1) { 
-        componentMarkup = `
-    <div id="pull-container" class="w-full max-w-md h-[380px] rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden relative flex flex-col items-center justify-center pt-4 select-none">
-        <div class="gooey-container w-full h-32 relative flex justify-center">
-            <div class="absolute w-24 h-4 bg-slate-300 rounded-b-full top-0"></div>
+            } else if (activeComponentIdx === 1) { 
+                componentMarkup = `
+    <div id="pull-container" class="w-full max-w-[340px] h-[360px] rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden relative flex flex-col items-center justify-center pt-4 select-none">
+        <div class="gooey-container w-full h-24 relative flex justify-center">
+            <div class="absolute w-24 h-3.5 bg-slate-300 rounded-b-full top-0"></div>
             <div id="pull-fluid" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: hsl(${config.hue}, 90%, 55%);">
                 <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -439,7 +455,7 @@ function copyComponentCode() {
         </div>
         <div class="text-center mt-12"><p class="text-sm font-semibold text-slate-500">아래로 부드럽게 끌어내리세요</p></div>
     </div>`;
-        componentScript = `
+                componentScript = `
         const config = {
             viscosity: ${config.viscosity},
             damping: ${config.damping},
@@ -489,13 +505,13 @@ function copyComponentCode() {
                 fluid.style.top = '0px'; fluid.style.transform = 'scale(1)';
             }
         });`;
-    } else if (activeComponentIdx === 2) { 
-        componentMarkup = `
+            } else if (activeComponentIdx === 2) { 
+                componentMarkup = `
     <div class="gooey-container bg-slate-100 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer" onclick="toggleSwitch()">
         <div id="toggle-blob-left" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full transition-all" style="left: 8px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
         <div id="toggle-blob-right" class="absolute w-[${config.size * 0.7}px] h-[${config.size * 0.7}px] rounded-full scale-0 opacity-0 transition-all" style="right: 12px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
     </div>`;
-        componentScript = `
+                componentScript = `
         let toggled = false;
         const config = { snap: ${config.snap}, size: ${config.size} };
         function toggleSwitch() {
@@ -512,14 +528,14 @@ function copyComponentCode() {
                 setTimeout(() => { right.style.transform = 'scale(0)'; left.style.transform = 'scale(1)'; }, config.snap * 300);
             }
         }`;
-    } else { 
-        componentMarkup = `
+            } else { 
+                componentMarkup = `
     <div class="gooey-container w-40 h-40 relative flex items-end justify-end p-4">
         <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">1</button>
         <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">2</button>
         <button id="fab-main-btn" class="relative w-16 h-16 rounded-full flex items-center justify-center text-white" style="background-color: hsl(${config.hue}, 90%, 55%); z-index: 50;" onclick="toggleFab()">+</button>
     </div>`;
-        componentScript = `
+                componentScript = `
         let open = false;
         const config = { snap: ${config.snap}, wobble: ${config.wobble}, size: ${config.size} };
         function toggleFab() {
@@ -538,15 +554,15 @@ function copyComponentCode() {
                 }
             });
         }`;
-    }
+            }
 
-    const fullCode = `<!DOCTYPE html>
+            const fullCode = `<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Liquid UI Component - Standalone</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .gooey-container { filter: url('#export-gooey-filter'); }
@@ -554,9 +570,9 @@ function copyComponentCode() {
 </head>
 <body>
 
-    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" style="display:none;">
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
         <defs>
-            <filter id="export-gooey-filter" x="-30%" y="-30%" width="160%" height="160%">
+            <filter id="export-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="${config.viscosity}" result="blur" />
                 <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${config.tension} ${config.threshold}" result="goo" />
                 <feComposite in="SourceGraphic" in2="goo" operator="atop" />
@@ -572,20 +588,22 @@ function copyComponentCode() {
 </body>
 </html>`;
 
-    const tempTextArea = document.createElement("textarea");
-    tempTextArea.value = fullCode;
-    document.body.appendChild(tempTextArea);
-    tempTextArea.select();
-    try {
-        document.execCommand('copy');
-        const toast = document.getElementById('toast');
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2000);
-    } catch (err) {
-        console.error('클립보드 복사 중 실패가 발생했습니다:', err);
-    }
-    document.body.removeChild(tempTextArea);
-}
+            const tempTextArea = document.createElement("textarea");
+            tempTextArea.value = fullCode;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand('copy');
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            } catch (err) {
+                console.error('클립보드 복사 중 오류 발생:', err);
+            }
+            document.body.removeChild(tempTextArea);
+        }
 
-selectComponent(0, 'comp-tab-bar');
+        selectComponent(0, 'comp-tab-bar');
+    </script>
 
+```
