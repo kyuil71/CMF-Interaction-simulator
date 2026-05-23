@@ -1,1 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Liquid GUI Micro-Interaction Lab</title>
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <!-- 외부 커스텀 스타일시트 연결 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 액체 물성을 융합시키는 전용 SVG 필터 정의 -->
+    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="hidden">
+        <defs>
+            <filter id="fluid-gooey-filter" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" id="svg-blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 35 -15" result="goo" id="svg-matrix" />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- 전체 화면 애플리케이션 프레임 -->
+    <div class="flex h-screen w-screen overflow-hidden relative">
+
+        <!-- 좌측 시각화 테스트 쇼룸 -->
+        <main class="flex-grow h-full flex flex-col items-center justify-between p-6 md:p-12 transition-all">
+            
+            <!-- 상단 헤더 영역 -->
+            <div class="w-full flex justify-between items-center z-10">
+                <div>
+                    <h1 class="text-xs font-bold uppercase tracking-widest text-slate-400">Micro-Interaction Lab</h1>
+                    <p class="text-xl font-extrabold tracking-tight" id="active-component-title">1. Gooey Tab Navigation</p>
+                </div>
+                <div class="flex gap-2">
+                    <!-- 테마 모드 버튼 -->
+                    <button id="theme-btn" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500" id="theme-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                    </button>
+                    <!-- 모바일용 사이드바 토글 버튼 -->
+                    <button id="sidebar-toggle-mobile" class="md:hidden w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><line x1="4" x1="20" y1="12" y2="12"/><line x1="4" x1="20" y1="6" y2="6"/><line x1="4" x1="20" y1="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 중앙 쇼케이스 마운트 룸 -->
+            <div class="w-full flex-grow flex items-center justify-center relative">
+                
+                <!-- [컴포넌트 1] 유동적인 탭 네비게이션 -->
+                <div id="comp-tab-bar" class="comp-view w-full max-w-md p-6 flex flex-col items-center gap-6">
+                    <div class="gooey-wrapper w-full bg-slate-100 dark:bg-slate-900/60 p-2.5 rounded-[28px] relative flex justify-between items-center border border-slate-200/50 dark:border-slate-800/50">
+                        <!-- 꿀렁이며 늘어나는 액티브 캡슐 -->
+                        <div id="tab-indicator" class="absolute h-[48px] w-[90px] rounded-[20px] transition-all duration-500" style="background-color: var(--accent-color); left: 10px;"></div>
+                        
+                        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold rounded-[20px] text-white flex-1 text-center transition-colors" onclick="switchTab(this, 0)">Home</button>
+                        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center transition-colors" onclick="switchTab(this, 1)">Explore</button>
+                        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center transition-colors" onclick="switchTab(this, 2)">Messages</button>
+                        <button class="tab-item relative z-10 py-3 px-5 text-sm font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center transition-colors" onclick="switchTab(this, 3)">Profile</button>
+                    </div>
+                    <p class="text-xs text-slate-400 text-center">탭을 누르면 물방울 인디케이터가 끈적하게 늘어나며 이동합니다.</p>
+                </div>
+
+                <!-- [컴포넌트 2] 액체 방울 새로고침 (Pull-to-Refresh) -->
+                <div id="comp-pull-refresh" class="comp-view w-full max-w-md h-[380px] rounded-3xl border border-slate-200/50 dark:border-slate-800/30 glass-panel overflow-hidden relative flex-col items-center justify-center gap-4 hidden">
+                    <div id="pull-container" class="absolute inset-0 flex flex-col justify-start pt-4 cursor-grab active:cursor-grabbing select-none">
+                        <div class="gooey-wrapper w-full h-32 relative flex justify-center">
+                            <div class="absolute w-24 h-4 bg-slate-300 dark:bg-slate-700 rounded-b-full top-0"></div>
+                            <div id="pull-fluid" class="absolute w-14 h-14 rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: var(--accent-color);">
+                                <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="text-center mt-20 px-8">
+                            <p class="text-sm font-semibold text-slate-500">마우스나 손가락으로 이곳을 아래로 길게 당겨 보세요.</p>
+                            <p class="text-xs text-slate-400 mt-2">일정 수치 이상 끌면 구체가 툭 끊어지며 로딩 상태가 활성화됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [컴포넌트 3] 수은 토글 스위치 (Mercury Switch) -->
+                <div id="comp-toggle" class="comp-view w-full max-w-md p-6 flex flex-col items-center gap-6 hidden">
+                    <div class="gooey-wrapper bg-slate-100 dark:bg-slate-900/60 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer border border-slate-200/50 dark:border-slate-800/50" onclick="toggleSwitch()">
+                        <div class="absolute inset-0 rounded-full transition-all duration-500" id="toggle-track-glow" style="background-color: transparent;"></div>
+                        <div id="toggle-blob-left" class="absolute w-14 h-14 rounded-full transition-all duration-500 flex items-center justify-center" style="left: 8px; background-color: var(--accent-color);"></div>
+                        <div id="toggle-blob-right" class="absolute w-12 h-12 rounded-full scale-0 opacity-0 transition-all duration-500" style="right: 12px; background-color: var(--accent-color);"></div>
+                    </div>
+                    <p class="text-xs text-slate-400 text-center">토글할 때 수은 방울이 자석처럼 부드럽게 융합되었다 떨어집니다.</p>
+                </div>
+
+                <!-- [컴포넌트 4] 세포 분열 플로팅 액션 버튼 (Division FAB) -->
+                <div id="comp-fab" class="comp-view w-full max-w-md h-[340px] border border-slate-200/50 dark:border-slate-800/30 glass-panel rounded-3xl relative overflow-hidden hidden flex-col justify-end p-8">
+                    <div class="gooey-wrapper absolute inset-0 p-8 flex flex-col justify-end items-end">
+                        
+                        <button class="fab-sub absolute w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 32px; right: 32px;">
+                            <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h.01"/><path d="M12 16h.01"/><path d="M12 12h.01"/><path d="M12 8h.01"/><path d="M12 4h.01"/></svg>
+                        </button>
+                        <button class="fab-sub absolute w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 32px; right: 32px;">
+                            <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x1="12" y1="2" y2="17"/></svg>
+                        </button>
+                        <button class="fab-sub absolute w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 32px; right: 32px;">
+                            <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                        </button>
+
+                        <button id="fab-main-btn" class="relative w-16 h-16 rounded-full shadow-xl flex items-center justify-center text-white transition-all duration-300 active:scale-90" style="background-color: var(--accent-color); z-index: 50;">
+                            <svg id="fab-icon" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="transition-transform duration-500"><line x1="12" x1="12" y1="5" y2="19"/><line x1="5" x1="19" y1="12" y2="12"/></svg>
+                        </button>
+                    </div>
+                    <div class="absolute bottom-6 left-6 max-w-[200px] pointer-events-none">
+                        <p class="text-xs font-semibold text-slate-500">Cell Division Menu</p>
+                        <p class="text-[10px] text-slate-400 mt-1">부모 핵심 영역에서 자식 요소들이 생체 증식하듯 퍼져나오는 인터랙션입니다.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 하단 컴포넌트 변환 스위처 탭 목록 -->
+            <div class="w-full flex justify-center gap-1.5 md:gap-3 z-10 overflow-x-auto py-2 no-scrollbar">
+                <button class="comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-sky-400/30 text-sky-500 bg-sky-500/10 hover:bg-sky-500/20 transition-all" onclick="selectComponent(0, 'comp-tab-bar')">TAB NAV</button>
+                <button class="comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all" onclick="selectComponent(1, 'comp-pull-refresh')">PULL REFRESH</button>
+                <button class="comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all" onclick="selectComponent(2, 'comp-toggle')">MERCURY SWITCH</button>
+                <button class="comp-nav-btn px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all" onclick="selectComponent(3, 'comp-fab')">DIVISION FAB</button>
+            </div>
+        </main>
+
+        <!-- 우측 미세 물리학 제어 설정 슬라이더 패널 -->
+        <aside id="sidebar" class="w-[360px] h-full glass-panel border-l border-slate-200/50 dark:border-slate-800/30 flex flex-col justify-between p-6 z-50 fixed right-0 top-0 bottom-0 md:static translate-x-full md:translate-x-0 transition-transform duration-500">
+            <div class="flex flex-col h-full justify-between">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-md font-bold tracking-tight flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse"></span>
+                        Micro-Physics Controls
+                    </h2>
+                    <button id="sidebar-close-mobile" class="md:hidden p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800">
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x1="6" y1="6" y2="18"/><line x1="6" x1="18" y1="6" y2="18"/></svg>
+                    </button>
+                </div>
+
+                <!-- 설정 슬라이더 그룹 -->
+                <div class="flex-grow overflow-y-auto pr-1 no-scrollbar space-y-5">
+                    <div class="control-group">
+                        <div class="label-row"><span>액체 점성 (Viscosity)</span><span id="v-viscosity">15</span></div>
+                        <input type="range" id="viscosity" min="0" max="40" step="1" value="15">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>표면 장력 (Tension)</span><span id="v-tension">35</span></div>
+                        <input type="range" id="tension" min="1" max="100" step="1" value="35">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>결합 경계 임계치 (Threshold)</span><span id="v-threshold">-15</span></div>
+                        <input type="range" id="threshold" min="-40" max="0" step="1" value="-15">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>스프링 복원 강도 (Spring)</span><span id="v-spring">0.45</span></div>
+                        <input type="range" id="spring" min="0" max="1.0" step="0.05" value="0.45">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>움직임 감쇠량 (Damping)</span><span id="v-damping">0.6</span></div>
+                        <input type="range" id="damping" min="0" max="1.0" step="0.05" value="0.6">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>스냅 복귀 속도 (Snap Speed)</span><span id="v-snap">0.5s</span></div>
+                        <input type="range" id="snap" min="0" max="2.0" step="0.1" value="0.5">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>충격 흔들림 강도 (Wobble)</span><span id="v-wobble">15px</span></div>
+                        <input type="range" id="wobble" min="0" max="60" step="2" value="15">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>드래그 한계치 (Pull Limit)</span><span id="v-pull">180px</span></div>
+                        <input type="range" id="pull" min="50" max="350" step="10" value="180">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>액체 기본 반경 (Base Size)</span><span id="v-size">52px</span></div>
+                        <input type="range" id="size" min="0" max="100" step="2" value="52">
+                    </div>
+                    <div class="control-group">
+                        <div class="label-row"><span>액체 메인 색상 (Hue)</span><span id="v-hue">200</span></div>
+                        <input type="range" id="hue" min="0" max="360" step="1" value="200">
+                    </div>
+                </div>
+
+                <!-- 하단 동작 기능 버튼 -->
+                <div class="pt-6 border-t border-slate-200/50 dark:border-slate-800/30 space-y-2">
+                    <button class="w-full py-3 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-semibold text-sm transition-all shadow-lg shadow-sky-500/20 active:scale-[0.98]" onclick="copyComponentCode()">
+                        현 상태 물성 코드로 내보내기
+                    </button>
+                    <button class="w-full py-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold text-sm transition-all" onclick="resetPhysics()">
+                        물리 기본값 초기화
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 클립보드 성공 알림 상자 -->
+    <div id="toast">코드가 클립보드에 복사되었습니다!</div>
+
+    <!-- 외부 커스텀 스크립트 연결 -->
+    <script src="script.js"></script>
+</body>
+</html>
 
