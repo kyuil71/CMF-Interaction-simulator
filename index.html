@@ -5,14 +5,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Liquid GUI Micro-Interaction Lab</title>
-    <!-- Tailwind CSS CDN 로드 -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 외부 커스텀 스타일시트 연결 -->
-    <link rel="stylesheet" href="style.css">
+
+    <!-- ========================================== -->
+    <!-- [1] 커스텀 스타일 (style.css 영역) START -->
+    <!-- ========================================== -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --accent-hue: 200;
+            --accent-color: hsl(var(--accent-hue), 90%, 55%);
+            --accent-glow: hsla(var(--accent-hue), 90%, 55%, 0.35);
+            --bg-color: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-color: #0f172a;
+            --border-color: rgba(0, 0, 0, 0.06);
+        }
+
+        /* 다크 테마 변수 */
+        .dark-theme {
+            --bg-color: #090d16;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --text-color: #f1f5f9;
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            overflow: hidden;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* [핵심] 끈적이는 물리 필터 레이어 전용 클래스 */
+        .gooey-layer {
+            filter: url('#fluid-gooey-filter');
+            will-change: filter;
+        }
+
+        /* 뷰포트 스위칭 관리 */
+        .comp-view.hidden {
+            display: none !important;
+        }
+
+        /* 우측 글래스모피즘 사이드바 */
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+        }
+
+        /* 커스텀 터치 슬라이더 레일 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+            height: 28px;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: rgba(120, 120, 120, 0.15);
+            height: 6px;
+            border-radius: 3px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: var(--accent-color);
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-glow);
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.3);
+        }
+
+        /* 결과 복사 완료 토스트 상자 */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(15, 23, 42, 0.95);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        .dark-theme #toast {
+            background: rgba(255, 255, 255, 0.98);
+            color: #0f172a;
+        }
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .no-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .dark-theme .no-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    </style>
+    <!-- ========================================== -->
+    <!-- [1] 커스텀 스타일 (style.css 영역) END -->
+    <!-- ========================================== -->
 </head>
 <body class="w-full h-full">
 
-    <!-- 자석처럼 뭉치는 물리 필터 정의 (확장 레이어 세팅으로 잘림 방지) -->
+    <!-- [중요] 흐린 경계가 잘려 보이는 문제를 막기 위해 영역 필터 해상도를 대폭 확장(x, y, width, height)했습니다 -->
     <svg xmlns="http://www.w3.org/2000/svg" class="absolute w-0 h-0" style="pointer-events: none;">
         <defs>
             <filter id="fluid-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">
@@ -23,49 +143,49 @@
         </defs>
     </svg>
 
-    <!-- 전체 화면 앱 구조 -->
+    <!-- 전체 화면 애플리케이션 셸 -->
     <div class="flex h-screen w-screen overflow-hidden relative">
 
-        <!-- 메인 인터랙션 뷰 포트 -->
-        <main class="flex-grow h-full flex flex-col items-center justify-between p-4 md:p-10 relative">
+        <!-- 메인 컴포넌트 뷰 포트 (전체 화면 대응) -->
+        <main class="flex-grow h-full flex flex-col items-center justify-between p-6 md:p-10 relative">
             
-            <!-- 상단 정보 바 -->
-            <div class="w-full max-w-lg flex justify-between items-center z-10">
+            <!-- 상단 정보 헤더 영역 -->
+            <div class="w-full max-w-md flex justify-between items-center z-10">
                 <div>
                     <h1 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Micro-Interaction Lab</h1>
                     <p class="text-lg font-extrabold tracking-tight" id="active-component-title">1. Gooey Tab Navigation</p>
                 </div>
-                <div class="flex gap-1.5">
-                    <!-- 테마 버튼 -->
+                <div class="flex gap-2">
+                    <!-- 다크모드 토글 스위치 -->
                     <button id="theme-btn" class="w-9 h-9 rounded-full glass-panel flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500" id="theme-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
                     </button>
-                    <!-- 우측 제어 서랍 토글 버튼 -->
+                    <!-- 우측 슬라이드 서랍 오픈 버튼 -->
                     <button id="sidebar-toggle" class="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-sky-500 hover:scale-105 active:scale-95 transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x1="20" y1="12" y2="12"/><line x1="4" x1="20" y1="6" y2="6"/><line x1="4" x1="20" y1="18" y2="18"/></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- 중앙 인터랙티브 쇼케이스 하우징 -->
-            <div class="w-full max-w-lg flex-grow flex items-center justify-center relative min-h-[340px]">
+            <!-- 중앙 인터랙티브 쇼케이스 -->
+            <div class="w-full max-w-md flex-grow flex items-center justify-center relative min-h-[320px]">
                 
-                <!-- [컴포넌트 1] 유동형 탭 네비게이션 -->
-                <div id="comp-tab-bar" class="comp-view w-full p-4 flex flex-col items-center gap-6">
+                <!-- [컴포넌트 1] 유동형 탭 네비게이션 (글자 번짐 차단을 위해 배경 물방울과 텍스트 레이어를 분할) -->
+                <div id="comp-tab-bar" class="comp-view w-full p-2 flex flex-col items-center gap-6">
                     <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 dark:bg-slate-900/60 p-1.5 relative border border-slate-200/40 dark:border-slate-800/40 overflow-hidden">
                         
-                        <!-- 1. 구이 필터 전용 오일 시각화 레이어 (오직 모양 융합만 처리) -->
+                        <!-- 배경 물리 융합 레이어 (여기에만 필터를 적용하여 글자 뭉개짐 완벽 차단!) -->
                         <div class="gooey-layer absolute inset-0 w-full h-full pointer-events-none">
                             <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[34px]"></div>
                             <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[114px]"></div>
                             <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[194px]"></div>
                             <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[274px]"></div>
                             
-                            <!-- 꿀렁이며 이동하는 메인 캡슐 -->
+                            <!-- 가속도에 맞춰 꼬리가 길어지는 액티브 인디케이터 수중 캡슐 -->
                             <div id="tab-indicator" class="absolute h-[42px] w-[68px] rounded-[16px] top-1.5 transition-all duration-300" style="background-color: var(--accent-color); left: 12px;"></div>
                         </div>
 
-                        <!-- 2. 완전히 격리된 텍스트/클릭 이벤트 오버레이 레이어 (필터 영향 없음 - 선명도 유지) -->
+                        <!-- 전경 텍스트 레이어 (필터의 왜곡 없이 100% 선명하게 렌더링됨) -->
                         <div class="absolute inset-0 w-full h-full flex justify-between items-center px-3 z-10">
                             <button class="tab-item text-xs font-bold text-white flex-1 text-center h-full transition-colors" onclick="switchTab(this, 0)">Home</button>
                             <button class="tab-item text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center h-full transition-colors" onclick="switchTab(this, 1)">Explore</button>
@@ -73,7 +193,7 @@
                             <button class="tab-item text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center h-full transition-colors" onclick="switchTab(this, 3)">Profile</button>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-400 text-center px-4 leading-relaxed">탭을 조작할 때 물방울이 옆으로 끈적하게 밀려가며 병합되는 무브먼트입니다.</p>
+                    <p class="text-xs text-slate-400 text-center px-4 leading-relaxed">탭 메뉴를 변경하면 하단의 배경 캡슐이 끈적한 유체처럼 끌려갑니다.</p>
                 </div>
 
                 <!-- [컴포넌트 2] 끌어서 새로고침 (Pull-to-Refresh) -->
@@ -81,6 +201,7 @@
                     <div id="pull-container" class="absolute inset-0 w-full h-full flex flex-col justify-start pt-4 cursor-grab active:cursor-grabbing select-none">
                         <div class="gooey-layer w-full h-24 relative flex justify-center">
                             <div class="absolute w-28 h-3.5 bg-slate-300 dark:bg-slate-700 rounded-b-full top-0"></div>
+                            <!-- 드롭 가속도 물리 시뮬레이션 원형 구체 -->
                             <div id="pull-fluid" class="absolute w-12 h-12 rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: var(--accent-color);">
                                 <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -89,8 +210,8 @@
                             </div>
                         </div>
                         <div class="text-center mt-16 px-6 pointer-events-none">
-                            <p class="text-sm font-bold text-slate-500">아래로 힘껏 드래그하세요</p>
-                            <p class="text-xs text-slate-400 mt-2 leading-relaxed">복원력을 극복하고 일정 거리 밀어내면 액체 기둥이 똑 끊어지며 스피너가 구동됩니다.</p>
+                            <p class="text-sm font-bold text-slate-500">아래 방향으로 당겼다 놓아보세요</p>
+                            <p class="text-xs text-slate-400 mt-2 leading-relaxed">복원력을 지닌 구체가 점성을 띄며 늘어나다가, 임계치에 다다르면 스냅 피드백과 함께 분리됩니다.</p>
                         </div>
                     </div>
                 </div>
@@ -102,10 +223,10 @@
                         <div id="toggle-blob-left" class="absolute w-14 h-14 rounded-full transition-all duration-500" style="left: 8px; background-color: var(--accent-color);"></div>
                         <div id="toggle-blob-right" class="absolute w-12 h-12 rounded-full scale-0 opacity-0 transition-all duration-500" style="right: 12px; background-color: var(--accent-color);"></div>
                     </div>
-                    <p class="text-xs text-slate-400 text-center">동일 평면상에서 수은 액체가 스냅되며 하나로 응집됩니다.</p>
+                    <p class="text-xs text-slate-400 text-center">두 개의 수은 구체가 결합 한도 영역 안에서 유기적으로 병합됩니다.</p>
                 </div>
 
-                <!-- [컴포넌트 4] 생체 분열식 FAB 버튼 -->
+                <!-- [컴포넌트 4] 세포 분열 플로팅 액션 버튼 (Cell Division FAB) -->
                 <div id="comp-fab" class="comp-view w-full max-w-[340px] h-[340px] border border-slate-200/50 dark:border-slate-800/30 glass-panel rounded-3xl relative overflow-hidden hidden flex-col justify-end p-6">
                     <div class="gooey-layer absolute inset-0 p-6 flex flex-col justify-end items-end">
                         <button class="fab-sub absolute w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 24px; right: 24px;">
@@ -124,14 +245,14 @@
                     </div>
                     <div class="absolute bottom-6 left-6 max-w-[180px] pointer-events-none">
                         <p class="text-xs font-bold text-slate-500">Cell Division</p>
-                        <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">모체에서 끈끈하게 분리되어 개별 수중 원소가 사출됩니다.</p>
+                        <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">모체 세포에서 자식 버튼들이 끈적하게 달라붙어 분열해 나오는 구조입니다.</p>
                     </div>
                 </div>
 
             </div>
 
-            <!-- 하단 컴포넌트 전환 네비게이터 -->
-            <div class="w-full max-w-lg flex justify-center gap-1.5 overflow-x-auto py-2 no-scrollbar z-10">
+            <!-- 하단 컴포넌트 탭 네비게이터 -->
+            <div class="w-full max-w-md flex justify-center gap-1.5 overflow-x-auto py-2 no-scrollbar z-10">
                 <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-sky-400/30 text-sky-500 bg-sky-500/10 hover:bg-sky-500/20 transition-all" onclick="selectComponent(0, 'comp-tab-bar')">TAB NAV</button>
                 <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all" onclick="selectComponent(1, 'comp-pull-refresh')">PULL</button>
                 <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all" onclick="selectComponent(2, 'comp-toggle')">SWITCH</button>
@@ -140,9 +261,9 @@
         </main>
 
         <!-- 모바일 가림막 오버레이 -->
-        <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0"></div>
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/45 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0"></div>
 
-        <!-- 우측 제어 연구소 슬라이더 패널 (모바일 슬라이드 서랍식 대응) -->
+        <!-- 우측 제어 연구소 슬라이더 패널 (모바일 슬라이드 서랍식 완벽 대응) -->
         <aside id="sidebar" class="fixed right-0 top-0 bottom-0 w-[300px] md:w-[360px] h-full glass-panel border-l border-slate-200/50 dark:border-slate-800/30 flex flex-col justify-between p-6 z-50 transform translate-x-full md:translate-x-0 transition-transform duration-300">
             
             <div class="flex flex-col h-full justify-between">
@@ -212,7 +333,7 @@
 
                 </div>
 
-                <!-- 하단 내보내기 및 초기화 버튼 -->
+                <!-- 하단 물성 복사 및 리셋 동작 -->
                 <div class="pt-4 border-t border-slate-200/50 dark:border-slate-800/30 space-y-2">
                     <button class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs transition-all shadow-lg shadow-sky-500/10 active:scale-[0.98]" onclick="copyComponentCode()">
                         현 상태 물성 코드로 내보내기
@@ -228,11 +349,620 @@
 
     </div>
 
-    <!-- 복사 성공 토스트 알림 -->
+    <!-- 복사 성공 토스트 알림 메시지 구조 -->
     <div id="toast">코드가 클립보드에 복사되었습니다!</div>
 
-    <!-- 외부 커스텀 스크립트 연결 -->
-    <script src="script.js"></script>
+    <!-- ========================================== -->
+    <!-- [2] 물리 시뮬레이션 JS (script.js 영역) START -->
+    <!-- ========================================== -->
+    <script>
+        const config = {
+            viscosity: 15,
+            tension: 35,
+            threshold: -15,
+            spring: 0.45,
+            damping: 0.6,
+            snap: 0.5,
+            wobble: 15,
+            pull: 180,
+            size: 52,
+            hue: 200
+        };
+
+        const titles = [
+            "1. Gooey Tab Navigation",
+            "2. Liquid Pull-to-Refresh",
+            "3. Mercury Switch",
+            "4. Cell Division FAB"
+        ];
+
+        let activeComponentIdx = 0;
+
+        const svgBlur = document.getElementById('svg-blur');
+        const svgMatrix = document.getElementById('svg-matrix');
+        const themeBtn = document.getElementById('theme-btn');
+        const themeIcon = document.getElementById('theme-icon');
+
+        themeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            const isDark = document.body.classList.contains('dark-theme');
+            themeIcon.innerHTML = isDark 
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>' 
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+        });
+
+        // 서랍형 메뉴 슬라이딩 제어
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+
+        function openSidebar() {
+            sidebar.classList.remove('translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            setTimeout(() => sidebarOverlay.classList.add('opacity-100'), 10);
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('translate-x-full');
+            sidebarOverlay.classList.remove('opacity-100');
+            setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+        }
+
+        sidebarToggle.addEventListener('click', openSidebar);
+        sidebarClose.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        function selectComponent(idx, elementId) {
+            activeComponentIdx = idx;
+            document.getElementById('active-component-title').innerText = titles[idx];
+            
+            document.querySelectorAll('.comp-view').forEach(view => view.classList.add('hidden'));
+            document.getElementById(elementId).classList.remove('hidden');
+            if (elementId === 'comp-pull-refresh' || elementId === 'comp-fab') {
+                document.getElementById(elementId).style.display = 'flex';
+            }
+
+            document.querySelectorAll('.comp-nav-btn').forEach((btn, bIdx) => {
+                if (bIdx === idx) {
+                    btn.className = "comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-sky-400/30 text-sky-500 bg-sky-500/10 hover:bg-sky-500/20 transition-all";
+                } else {
+                    btn.className = "comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 transition-all";
+                }
+            });
+
+            adaptPhysicsPreset(idx);
+            
+            if(window.innerWidth < 768) {
+                closeSidebar();
+            }
+        }
+
+        function adaptPhysicsPreset(idx) {
+            if (idx === 0) {
+                updateSlider('viscosity', 14);
+                updateSlider('tension', 32);
+                updateSlider('threshold', -13);
+                updateSlider('snap', 0.5);
+            } else if (idx === 1) {
+                updateSlider('viscosity', 18);
+                updateSlider('tension', 45);
+                updateSlider('threshold', -18);
+                updateSlider('size', 56);
+            } else if (idx === 2) {
+                updateSlider('viscosity', 16);
+                updateSlider('tension', 38);
+                updateSlider('threshold', -14);
+                updateSlider('size', 52);
+            } else if (idx === 3) {
+                updateSlider('viscosity', 12);
+                updateSlider('tension', 30);
+                updateSlider('threshold', -11);
+                updateSlider('size', 48);
+            }
+        }
+
+        function updateSlider(id, val) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.value = val;
+                config[id] = val;
+                const display = document.getElementById('v-' + id);
+                if (display) display.innerText = (id === 'snap') ? val + 's' : ((id==='wobble' || id==='pull' || id==='size') ? val+'px' : val);
+                applyPhysicsToDOM(id, val);
+            }
+        }
+
+        // 1. [TAB NAV] 상호작용
+        function switchTab(btn, index) {
+            const tabs = document.querySelectorAll('.tab-item');
+            const indicator = document.getElementById('tab-indicator');
+            
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.remove('text-slate-400', 'dark:text-slate-500', 'hover:text-slate-600');
+                    tab.classList.add('text-white');
+                } else {
+                    tab.classList.add('text-slate-400', 'dark:text-slate-500');
+                    tab.classList.remove('text-white');
+                }
+            });
+
+            const leftOffset = 12 + (index * 80); // 정밀한 간격 산출로 찌그러짐 예방
+            
+            if (config.viscosity > 0) {
+                const currentLeft = parseFloat(indicator.style.left) || 12;
+                const isForward = leftOffset > currentLeft;
+                const distance = Math.abs(leftOffset - currentLeft);
+                
+                const stretchWidth = 68 + (distance * config.spring * 0.4);
+                indicator.style.width = `${stretchWidth}px`;
+                if (!isForward) {
+                    indicator.style.left = `${leftOffset}px`;
+                }
+                
+                setTimeout(() => {
+                    indicator.style.width = '68px';
+                    indicator.style.left = `${leftOffset}px`;
+                }, config.snap * 500);
+            } else {
+                indicator.style.width = '68px';
+                indicator.style.left = `${leftOffset}px`;
+            }
+        }
+
+        // 2. [PULL REFRESH] 마우스 및 모바일 드래그 제어
+        const pullContainer = document.getElementById('pull-container');
+        const pullFluid = document.getElementById('pull-fluid');
+        const spinnerIcon = document.getElementById('spinner-icon');
+
+        let isPulling = false;
+        let startY = 0;
+        let pullDist = 0;
+        let isRefreshing = false;
+
+        function handlePullStart(e) {
+            if (isRefreshing) return;
+            isPulling = true;
+            startY = e.clientY || e.touches[0].clientY;
+            pullFluid.style.transition = 'none';
+        }
+
+        function handlePullMove(e) {
+            if (!isPulling || isRefreshing) return;
+            const currentY = e.clientY || e.touches[0].clientY;
+            const deltaY = currentY - startY;
+
+            if (deltaY > 0) {
+                const limit = config.pull;
+                const dampingFactor = 1 - (config.damping * 0.45);
+                pullDist = Math.min(deltaY * dampingFactor, limit);
+
+                const scaleX = 1 - (pullDist / limit) * 0.45 * (config.viscosity / 20);
+                const scaleY = 1 + (pullDist / limit) * 1.1 * (config.viscosity / 20);
+                
+                pullFluid.style.top = `${pullDist}px`;
+                pullFluid.style.transform = `scale(${scaleX}, ${scaleY})`;
+                
+                pullFluid.style.width = `${config.size}px`;
+                pullFluid.style.height = `${config.size}px`;
+            }
+        }
+
+        function handlePullEnd() {
+            if (!isPulling) return;
+            isPulling = false;
+            
+            const limit = config.pull;
+
+            if (pullDist >= limit * 0.8 && config.viscosity > 3) {
+                isRefreshing = true;
+                
+                pullFluid.style.transition = `all ${config.snap}s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+                pullFluid.style.top = `${limit + 30}px`;
+                pullFluid.style.transform = 'scale(0)';
+                
+                setTimeout(() => {
+                    spinnerIcon.classList.remove('hidden');
+                    pullFluid.style.top = '24px';
+                    pullFluid.style.transform = 'scale(1)';
+                    pullFluid.style.width = '40px';
+                    pullFluid.style.height = '40px';
+                }, config.snap * 1000);
+
+                setTimeout(() => {
+                    resetPullState();
+                }, 2800);
+
+            } else {
+                pullFluid.style.transition = `all ${config.snap}s cubic-bezier(0.175, 0.885, 0.32, ${1 + (config.wobble/30)})`;
+                pullFluid.style.top = '0px';
+                pullFluid.style.transform = 'scale(1)';
+                pullFluid.style.width = `${config.size}px`;
+                pullFluid.style.height = `${config.size}px`;
+            }
+            pullDist = 0;
+        }
+
+        function resetPullState() {
+            isRefreshing = false;
+            spinnerIcon.classList.add('hidden');
+            pullFluid.style.transition = `all ${config.snap}s ease`;
+            pullFluid.style.top = '0px';
+            pullFluid.style.transform = 'scale(1)';
+            pullFluid.style.width = `${config.size}px`;
+            pullFluid.style.height = `${config.size}px`;
+        }
+
+        // 터치 방해 금지 영역을 한정하여 모바일 스크롤과 상호작용 충돌을 완전히 해결합니다.
+        pullContainer.addEventListener('mousedown', handlePullStart);
+        pullContainer.addEventListener('touchstart', handlePullStart, { passive: true });
+
+        window.addEventListener('mousemove', (e) => {
+            if (activeComponentIdx === 1 && isPulling) handlePullMove(e);
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (activeComponentIdx === 1 && isPulling) {
+                if (e.cancelable) e.preventDefault();
+                handlePullMove(e);
+            }
+        }, { passive: false });
+
+        window.addEventListener('mouseup', handlePullEnd);
+        window.addEventListener('touchend', handlePullEnd);
+
+        // 3. [MERCURY SWITCH] 동작
+        let isToggled = false;
+        function toggleSwitch() {
+            isToggled = !isToggled;
+            const leftBlob = document.getElementById('toggle-blob-left');
+            const rightBlob = document.getElementById('toggle-blob-right');
+            const trackGlow = document.getElementById('toggle-track-glow');
+
+            leftBlob.style.transition = `all ${config.snap}s cubic-bezier(0.19, 1, 0.22, 1)`;
+            rightBlob.style.transition = `all ${config.snap}s cubic-bezier(0.19, 1, 0.22, 1)`;
+
+            if (isToggled) {
+                leftBlob.style.width = `${config.size * 0.7}px`;
+                leftBlob.style.height = `${config.size * 0.7}px`;
+                leftBlob.style.left = '35px';
+                
+                rightBlob.style.opacity = '1';
+                rightBlob.style.transform = 'scale(1.2)';
+                rightBlob.style.width = `${config.size}px`;
+                rightBlob.style.height = `${config.size}px`;
+
+                setTimeout(() => {
+                    leftBlob.style.transform = 'scale(0)';
+                    leftBlob.style.opacity = '0';
+                    rightBlob.style.transform = 'scale(1)';
+                }, config.snap * 300);
+
+                trackGlow.style.backgroundColor = 'var(--accent-glow)';
+            } else {
+                leftBlob.style.opacity = '1';
+                leftBlob.style.transform = 'scale(1.2)';
+                leftBlob.style.left = '8px';
+                leftBlob.style.width = `${config.size}px`;
+                leftBlob.style.height = `${config.size}px`;
+
+                rightBlob.style.width = `${config.size * 0.7}px`;
+                rightBlob.style.height = `${config.size * 0.7}px`;
+
+                setTimeout(() => {
+                    rightBlob.style.transform = 'scale(0)';
+                    rightBlob.style.opacity = '0';
+                    leftBlob.style.transform = 'scale(1)';
+                }, config.snap * 300);
+
+                trackGlow.style.backgroundColor = 'transparent';
+            }
+        }
+
+        // 4. [DIVISION FAB] 동작
+        const fabBtn = document.getElementById('fab-main-btn');
+        let isFabOpen = false;
+
+        fabBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isFabOpen = !isFabOpen;
+            const subs = document.querySelectorAll('.fab-sub');
+            const icon = document.getElementById('fab-icon');
+
+            icon.style.transform = isFabOpen ? 'rotate(135deg)' : 'rotate(0deg)';
+
+            subs.forEach((sub, i) => {
+                sub.style.transition = `all ${config.snap + (i*0.1)}s cubic-bezier(0.175, 0.885, 0.32, ${1.1 + (config.wobble / 40)})`;
+                
+                if (isFabOpen) {
+                    sub.style.width = `${config.size * 0.9}px`;
+                    sub.style.height = `${config.size * 0.9}px`;
+                    const angle = (Math.PI / 2) * (i / 2) + Math.PI; 
+                    const dist = 74 + (config.wobble * 0.8);
+                    const tx = Math.cos(angle) * dist;
+                    const ty = Math.sin(angle) * dist;
+
+                    sub.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+                } else {
+                    sub.style.transform = 'translate(0, 0) scale(0)';
+                }
+            });
+        });
+
+        const setupPhysicsController = (id) => {
+            const el = document.getElementById(id);
+            const valLabel = document.getElementById('v-' + id);
+            
+            el.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                config[id] = val;
+                
+                valLabel.innerText = (id === 'snap') ? val + 's' : ((id==='wobble' || id==='pull' || id==='size') ? val+'px' : val);
+                applyPhysicsToDOM(id, val);
+            });
+        };
+
+        ['viscosity', 'tension', 'threshold', 'spring', 'damping', 'snap', 'wobble', 'pull', 'size', 'hue'].forEach(setupPhysicsController);
+
+        function applyPhysicsToDOM(id, value) {
+            if (id === 'viscosity') {
+                svgBlur.setAttribute('stdDeviation', value);
+            }
+            if (id === 'tension' || id === 'threshold') {
+                svgMatrix.setAttribute('values', `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${config.tension} ${config.threshold}`);
+            }
+            if (id === 'hue') {
+                document.documentElement.style.setProperty('--accent-hue', value);
+            }
+            if (id === 'size') {
+                document.querySelectorAll('.fab-sub').forEach(el => {
+                    if(!isFabOpen) return;
+                    el.style.width = `${value * 0.9}px`;
+                    el.style.height = `${value * 0.9}px`;
+                });
+                if(!isPulling) {
+                    pullFluid.style.width = `${value}px`;
+                    pullFluid.style.height = `${value}px`;
+                }
+            }
+        }
+
+        function resetPhysics() {
+            updateSlider('viscosity', 15);
+            updateSlider('tension', 35);
+            updateSlider('threshold', -15);
+            updateSlider('spring', 0.45);
+            updateSlider('damping', 0.6);
+            updateSlider('snap', 0.5);
+            updateSlider('wobble', 15);
+            updateSlider('pull', 180);
+            updateSlider('size', 52);
+            updateSlider('hue', 200);
+            
+            if (isFabOpen) fabBtn.click();
+            if (isToggled) toggleSwitch();
+            resetPullState();
+        }
+
+        // 현재 튜닝된 수치를 상수로 저장한 깔끔한 빌드 단독 HTML 코드를 클립보드로 사출합니다.
+        function copyComponentCode() {
+            let componentMarkup = "";
+            let componentScript = "";
+
+            const sTag = '<' + 'script' + '>';
+            const eTag = '<' + '/' + 'script' + '>';
+
+            if (activeComponentIdx === 0) { 
+                componentMarkup = `
+    <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 p-1.5 relative border border-slate-200/40 overflow-hidden">
+        <div class="gooey-container absolute inset-0 w-full h-full pointer-events-none">
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[34px]"></div>
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[114px]"></div>
+            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[194px]"></div>
+            <div id="tab-indicator" class="absolute h-[42px] w-[68px] rounded-[16px] top-1.5 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); left: 12px;"></div>
+        </div>
+        <div class="absolute inset-0 w-full h-full flex justify-between items-center px-3 z-10">
+            <button class="tab-item text-xs font-bold text-white flex-1 text-center" onclick="switchTab(this, 0)">Home</button>
+            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 1)">Explore</button>
+            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 2)">Messages</button>
+        </div>
+    </div>`;
+                componentScript = `
+        const config = {
+            viscosity: ${config.viscosity},
+            spring: ${config.spring},
+            snap: ${config.snap},
+            hue: ${config.hue}
+        };
+        function switchTab(btn, index) {
+            const tabs = document.querySelectorAll('.tab-item');
+            const indicator = document.getElementById('tab-indicator');
+            tabs.forEach((tab, i) => {
+                tab.style.color = (i === index) ? '#fff' : '#94a3b8';
+            });
+            const leftOffset = 12 + (index * 80);
+            if (config.viscosity > 0) {
+                const currentLeft = parseFloat(indicator.style.left || 12);
+                const distance = Math.abs(leftOffset - currentLeft);
+                const stretchWidth = 68 + (distance * config.spring * 0.4);
+                indicator.style.width = stretchWidth + "px";
+                if (leftOffset < currentLeft) indicator.style.left = leftOffset + "px";
+                setTimeout(() => {
+                    indicator.style.width = '68px';
+                    indicator.style.left = leftOffset + "px";
+                }, config.snap * 500);
+            } else {
+                indicator.style.width = '68px';
+                indicator.style.left = leftOffset + "px";
+            }
+        }`;
+            } else if (activeComponentIdx === 1) { 
+                componentMarkup = `
+    <div id="pull-container" class="w-full max-w-[340px] h-[360px] rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden relative flex flex-col items-center justify-center pt-4 select-none">
+        <div class="gooey-container w-full h-24 relative flex justify-center">
+            <div class="absolute w-24 h-3.5 bg-slate-300 rounded-b-full top-0"></div>
+            <div id="pull-fluid" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: hsl(${config.hue}, 90%, 55%);">
+                <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="text-center mt-12"><p class="text-sm font-semibold text-slate-500">아래로 부드럽게 끌어내리세요</p></div>
+    </div>`;
+                componentScript = `
+        const config = {
+            viscosity: ${config.viscosity},
+            damping: ${config.damping},
+            snap: ${config.snap},
+            wobble: ${config.wobble},
+            pull: ${config.pull},
+            size: ${config.size},
+            hue: ${config.hue}
+        };
+        const container = document.getElementById('pull-container');
+        const fluid = document.getElementById('pull-fluid');
+        const spinner = document.getElementById('spinner-icon');
+        let startY = 0, pulling = false, dist = 0, refreshing = false;
+
+        container.addEventListener('mousedown', (e) => {
+            if(refreshing) return; pulling = true; startY = e.clientY; fluid.style.transition = 'none';
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(!pulling || refreshing) return;
+            const dy = e.clientY - startY;
+            if(dy > 0) {
+                dist = Math.min(dy * (1 - config.damping * 0.4), config.pull);
+                const sx = 1 - (dist/config.pull)*0.45*(config.viscosity/20);
+                const sy = 1 + (dist/config.pull)*1.1*(config.viscosity/20);
+                fluid.style.top = dist + 'px';
+                fluid.style.transform = \`scale(\${sx}, \${sy})\`;
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            if(!pulling) return; pulling = false;
+            if(dist >= config.pull * 0.8) {
+                refreshing = true;
+                fluid.style.transition = \`all \${config.snap}s ease\`;
+                fluid.style.top = (config.pull + 30) + 'px';
+                fluid.style.transform = 'scale(0)';
+                setTimeout(() => {
+                    spinner.classList.remove('hidden');
+                    fluid.style.top = '24px'; fluid.style.transform = 'scale(1)';
+                    fluid.style.width = '40px'; fluid.style.height = '40px';
+                }, config.snap * 1000);
+                setTimeout(() => {
+                    refreshing = false; spinner.classList.add('hidden');
+                    fluid.style.top = '0px'; fluid.style.width = config.size+'px'; fluid.style.height = config.size+'px';
+                }, 3000);
+            } else {
+                fluid.style.transition = \`all \${config.snap}s cubic-bezier(0.175, 0.885, 0.32, \${1 + config.wobble/30})\`;
+                fluid.style.top = '0px'; fluid.style.transform = 'scale(1)';
+            }
+        });`;
+            } else if (activeComponentIdx === 2) { 
+                componentMarkup = `
+    <div class="gooey-container bg-slate-100 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer" onclick="toggleSwitch()">
+        <div id="toggle-blob-left" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full transition-all" style="left: 8px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
+        <div id="toggle-blob-right" class="absolute w-[${config.size * 0.7}px] h-[${config.size * 0.7}px] rounded-full scale-0 opacity-0 transition-all" style="right: 12px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
+    </div>`;
+                componentScript = `
+        let toggled = false;
+        const config = { snap: ${config.snap}, size: ${config.size} };
+        function toggleSwitch() {
+            toggled = !toggled;
+            const left = document.getElementById('toggle-blob-left');
+            const right = document.getElementById('toggle-blob-right');
+            left.style.transition = right.style.transition = \`all \${config.snap}s ease\`;
+            if(toggled) {
+                left.style.width = right.style.width = config.size + 'px';
+                left.style.left = '35px'; right.style.opacity = '1'; right.style.transform = 'scale(1.2)';
+                setTimeout(() => { left.style.transform = 'scale(0)'; right.style.transform = 'scale(1)'; }, config.snap * 300);
+            } else {
+                left.style.opacity = '1'; left.style.transform = 'scale(1.2)'; left.style.left = '8px';
+                setTimeout(() => { right.style.transform = 'scale(0)'; left.style.transform = 'scale(1)'; }, config.snap * 300);
+            }
+        }`;
+            } else { 
+                componentMarkup = `
+    <div class="gooey-container w-40 h-40 relative flex items-end justify-end p-4">
+        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">1</button>
+        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">2</button>
+        <button id="fab-main-btn" class="relative w-16 h-16 rounded-full flex items-center justify-center text-white" style="background-color: hsl(${config.hue}, 90%, 55%); z-index: 50;" onclick="toggleFab()">+</button>
+    </div>`;
+                componentScript = `
+        let open = false;
+        const config = { snap: ${config.snap}, wobble: ${config.wobble}, size: ${config.size} };
+        function toggleFab() {
+            open = !open;
+            const subs = document.querySelectorAll('.fab-sub');
+            subs.forEach((sub, i) => {
+                sub.style.transition = \`all \${config.snap + (i*0.1)}s ease\`;
+                if(open) {
+                    const ang = (Math.PI/2)*(i/1) + Math.PI;
+                    const tx = Math.cos(ang) * (80 + config.wobble);
+                    const ty = Math.sin(ang) * (80 + config.wobble);
+                    sub.style.transform = \`translate(\${tx}px, \${ty}px) scale(1)\`;
+                    sub.style.width = sub.style.height = config.size + 'px';
+                } else {
+                    sub.style.transform = 'translate(0,0) scale(0)';
+                }
+            });
+        }`;
+            }
+
+            const fullCode = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid UI Component - Standalone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .gooey-container { filter: url('#export-gooey-filter'); }
+    </style>
+</head>
+<body>
+
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+        <defs>
+            <filter id="export-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="${config.viscosity}" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${config.tension} ${config.threshold}" result="goo" />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
+        </defs>
+    </svg>
+
+    ${componentMarkup}
+
+    ${sTag}
+        ${componentScript}
+    ${eTag}
+</body>
+</html>`;
+
+            const tempTextArea = document.createElement("textarea");
+            tempTextArea.value = fullCode;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand('copy');
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            } catch (err) {
+                console.error('클립보드 복사 중 오류 발생:', err);
+            }
+            document.body.removeChild(tempTextArea);
+        }
+
+        selectComponent(0, 'comp-tab-bar');
+    </script>
+    <!-- ========================================== -->
+    <!-- [2] 물리 시뮬레이션 JS (script.js 영역) END -->
+    <!-- ========================================== -->
 </body>
 </html>
 
