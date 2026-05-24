@@ -78,7 +78,6 @@ function selectComponent(idx, elementId) {
 
     adaptPhysicsPreset(idx);
     
-    // 모바일일 경우 컴포넌트 스위칭 후 서랍을 자동으로 접어 감상에 집중할 수 있도록 처리합니다.
     if(window.innerWidth < 768) {
         closeSidebar();
     }
@@ -134,28 +133,45 @@ function switchTab(btn, index) {
         }
     });
 
-    const leftOffset = 12 + (index * 80); // 탭 정밀 좌표 매칭
+    // 화면 비율 찌그러짐을 방지하기 위한 퍼센트 가변 좌표 변환 연동 (2%, 26%, 50%, 74%)
+    const leftOffset = 2 + (index * 24); 
     
     if (config.viscosity > 0) {
-        const currentLeft = parseFloat(indicator.style.left) || 12;
+        const currentLeft = parseFloat(indicator.style.left) || 2;
         const isForward = leftOffset > currentLeft;
         const distance = Math.abs(leftOffset - currentLeft);
         
-        const stretchWidth = 68 + (distance * config.spring * 0.4);
-        indicator.style.width = `${stretchWidth}px`;
+        const stretchWidth = 21 + (distance * config.spring * 0.15);
+        indicator.style.width = stretchWidth + "%";
         if (!isForward) {
-            indicator.style.left = `${leftOffset}px`;
+            indicator.style.left = leftOffset + "%";
         }
         
         setTimeout(() => {
-            indicator.style.width = '68px';
-            indicator.style.left = `${leftOffset}px`;
+            indicator.style.width = '21%';
+            indicator.style.left = leftOffset + "%";
         }, config.snap * 500);
     } else {
-        indicator.style.width = '68px';
-        indicator.style.left = `${leftOffset}px`;
+        indicator.style.width = '21%';
+        indicator.style.left = leftOffset + "%";
     }
 }
+
+// 모바일 클릭 이벤트를 직접 활성화하기 위해 안전 리스너를 수립합니다
+document.querySelectorAll('.tab-item').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-index'));
+        switchTab(e.currentTarget, idx);
+    });
+});
+
+document.querySelectorAll('.comp-nav-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-comp-idx'));
+        const compId = e.currentTarget.getAttribute('data-comp-id');
+        selectComponent(idx, compId);
+    });
+});
 
 // 2. [PULL REFRESH] 터치 드래그 물리 로직
 const pullContainer = document.getElementById('pull-container');
@@ -170,13 +186,13 @@ let isRefreshing = false;
 function handlePullStart(e) {
     if (isRefreshing) return;
     isPulling = true;
-    startY = e.clientY || e.touches[0].clientY;
+    startY = e.clientY || (e.touches && e.touches[0].clientY);
     pullFluid.style.transition = 'none';
 }
 
 function handlePullMove(e) {
     if (!isPulling || isRefreshing) return;
-    const currentY = e.clientY || e.touches[0].clientY;
+    const currentY = e.clientY || (e.touches && e.touches[0].clientY);
     const deltaY = currentY - startY;
 
     if (deltaY > 0) {
@@ -240,7 +256,7 @@ function resetPullState() {
     pullFluid.style.height = `${config.size}px`;
 }
 
-// 이벤트 인터셉트 방지 전용 셋
+// 터치 간섭 범위 조율
 pullContainer.addEventListener('mousedown', handlePullStart);
 pullContainer.addEventListener('touchstart', handlePullStart, { passive: true });
 
@@ -253,12 +269,13 @@ window.addEventListener('touchmove', (e) => {
         handlePullMove(e);
     }
 }, { passive: false });
-
 window.addEventListener('mouseup', handlePullEnd);
 window.addEventListener('touchend', handlePullEnd);
 
 // 3. [MERCURY SWITCH] 수은 스냅 토글
 let isToggled = false;
+const mercurySwitch = document.getElementById('mercury-switch');
+
 function toggleSwitch() {
     isToggled = !isToggled;
     const leftBlob = document.getElementById('toggle-blob-left');
@@ -303,6 +320,9 @@ function toggleSwitch() {
 
         trackGlow.style.backgroundColor = 'transparent';
     }
+}
+if (mercurySwitch) {
+    mercurySwitch.addEventListener('click', toggleSwitch);
 }
 
 // 4. [DIVISION FAB] 동작 제어
@@ -391,219 +411,260 @@ function resetPhysics() {
 }
 
 function copyComponentCode() {
-    let componentMarkup = "";
-    let componentScript = "";
-
-    const sTag = '<' + 'script' + '>';
-    const eTag = '<' + '/' + 'script' + '>';
+    var sTag = "<" + "script" + ">";
+    var eTag = "<" + "/" + "script" + ">";
+    
+    var componentMarkup = "";
+    var componentScript = "";
 
     if (activeComponentIdx === 0) { 
-        componentMarkup = `
-    <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 p-1.5 relative border border-slate-200/40 overflow-hidden">
-        <div class="gooey-container absolute inset-0 w-full h-full pointer-events-none">
-            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[34px]"></div>
-            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[114px]"></div>
-            <div class="absolute w-[24px] h-[24px] rounded-full bg-slate-200/50 top-5 left-[194px]"></div>
-            <div id="tab-indicator" class="absolute h-[42px] w-[68px] rounded-[16px] top-1.5 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); left: 12px;"></div>
-        </div>
-        <div class="absolute inset-0 w-full h-full flex justify-between items-center px-3 z-10">
-            <button class="tab-item text-xs font-bold text-white flex-1 text-center" onclick="switchTab(this, 0)">Home</button>
-            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 1)">Explore</button>
-            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" onclick="switchTab(this, 2)">Messages</button>
-        </div>
-    </div>`;
-                componentScript = `
-        const config = {
-            viscosity: ${config.viscosity},
-            spring: ${config.spring},
-            snap: ${config.snap},
-            hue: ${config.hue}
-        };
-        function switchTab(btn, index) {
-            const tabs = document.querySelectorAll('.tab-item');
-            const indicator = document.getElementById('tab-indicator');
-            tabs.forEach((tab, i) => {
-                tab.style.color = (i === index) ? '#fff' : '#94a3b8';
-            });
-            const leftOffset = 12 + (index * 80);
-            if (config.viscosity > 0) {
-                const currentLeft = parseFloat(indicator.style.left || 12);
-                const distance = Math.abs(leftOffset - currentLeft);
-                const stretchWidth = 68 + (distance * config.spring * 0.4);
-                indicator.style.width = stretchWidth + "px";
-                if (leftOffset < currentLeft) indicator.style.left = leftOffset + "px";
-                setTimeout(() => {
-                    indicator.style.width = '68px';
-                    indicator.style.left = leftOffset + "px";
-                }, config.snap * 500);
-            } else {
-                indicator.style.width = '68px';
-                indicator.style.left = leftOffset + "px";
-            }
-        }`;
-            } else if (activeComponentIdx === 1) { 
-                componentMarkup = `
-    <div id="pull-container" class="w-full max-w-[340px] h-[360px] rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden relative flex flex-col items-center justify-center pt-4 select-none">
-        <div class="gooey-container w-full h-24 relative flex justify-center">
-            <div class="absolute w-24 h-3.5 bg-slate-300 rounded-b-full top-0"></div>
-            <div id="pull-fluid" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: hsl(${config.hue}, 90%, 55%);">
-                <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        </div>
-        <div class="text-center mt-12"><p class="text-sm font-semibold text-slate-500">아래로 부드럽게 끌어내리세요</p></div>
-    </div>`;
-                componentScript = `
-        const config = {
-            viscosity: ${config.viscosity},
-            damping: ${config.damping},
-            snap: ${config.snap},
-            wobble: ${config.wobble},
-            pull: ${config.pull},
-            size: ${config.size},
-            hue: ${config.hue}
-        };
-        const container = document.getElementById('pull-container');
-        const fluid = document.getElementById('pull-fluid');
-        const spinner = document.getElementById('spinner-icon');
-        let startY = 0, pulling = false, dist = 0, refreshing = false;
+        componentMarkup = [
+            '    <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 p-1.5 relative border border-slate-200/40 overflow-hidden">',
+            '        <div class="gooey-container absolute inset-0 w-full h-full pointer-events-none">',
+            '            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 top-5 left-[12.5%] -translate-x-1/2"></div>',
+            '            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 top-5 left-[37.5%] -translate-x-1/2"></div>',
+            '            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 top-5 left-[62.5%] -translate-x-1/2"></div>',
+            '            <div id="tab-indicator" class="absolute h-[40px] w-[21%] rounded-[16px] top-2 transition-all" style="background-color: hsl(' + config.hue + ', 90%, 55%); left: 2%;"></div>',
+            '        </div>',
+            '        <div class="absolute inset-0 w-full h-full flex justify-between items-center px-1 z-10">',
+            '            <button class="tab-item text-xs font-bold text-white flex-1 text-center h-full transition-colors" data-index="0">Home</button>',
+            '            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center h-full transition-colors" data-index="1">Explore</button>',
+            '            <button class="tab-item text-xs font-bold text-slate-400 flex-1 text-center" data-index="2">Messages</button>',
+            '        </div>',
+            '    </div>'
+        ].join('\n');
 
-        container.addEventListener('mousedown', (e) => {
-            if(refreshing) return; pulling = true; startY = e.clientY; fluid.style.transition = 'none';
-        });
-        window.addEventListener('mousemove', (e) => {
-            if(!pulling || refreshing) return;
-            const dy = e.clientY - startY;
-            if(dy > 0) {
-                dist = Math.min(dy * (1 - config.damping * 0.4), config.pull);
-                const sx = 1 - (dist/config.pull)*0.45*(config.viscosity/20);
-                const sy = 1 + (dist/config.pull)*1.1*(config.viscosity/20);
-                fluid.style.top = dist + 'px';
-                fluid.style.transform = \`scale(\${sx}, \${sy})\`;
-            }
-        });
-        window.addEventListener('mouseup', () => {
-            if(!pulling) return; pulling = false;
-            if(dist >= config.pull * 0.8) {
-                refreshing = true;
-                fluid.style.transition = \`all \${config.snap}s ease\`;
-                fluid.style.top = (config.pull + 30) + 'px';
-                fluid.style.transform = 'scale(0)';
-                setTimeout(() => {
-                    spinner.classList.remove('hidden');
-                    fluid.style.top = '24px'; fluid.style.transform = 'scale(1)';
-                    fluid.style.width = '40px'; fluid.style.height = '40px';
-                }, config.snap * 1000);
-                setTimeout(() => {
-                    refreshing = false; spinner.classList.add('hidden');
-                    fluid.style.top = '0px'; fluid.style.width = config.size+'px'; fluid.style.height = config.size+'px';
-                }, 3000);
-            } else {
-                fluid.style.transition = \`all \${config.snap}s cubic-bezier(0.175, 0.885, 0.32, \${1 + config.wobble/30})\`;
-                fluid.style.top = '0px'; fluid.style.transform = 'scale(1)';
-            }
-        });`;
-            } else if (activeComponentIdx === 2) { 
-                componentMarkup = `
-    <div class="gooey-container bg-slate-100 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer" onclick="toggleSwitch()">
-        <div id="toggle-blob-left" class="absolute w-[${config.size}px] h-[${config.size}px] rounded-full transition-all" style="left: 8px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
-        <div id="toggle-blob-right" class="absolute w-[${config.size * 0.7}px] h-[${config.size * 0.7}px] rounded-full scale-0 opacity-0 transition-all" style="right: 12px; background-color: hsl(${config.hue}, 90%, 55%);"></div>
-    </div>`;
-                componentScript = `
-        let toggled = false;
-        const config = { snap: ${config.snap}, size: ${config.size} };
-        function toggleSwitch() {
-            toggled = !toggled;
-            const left = document.getElementById('toggle-blob-left');
-            const right = document.getElementById('toggle-blob-right');
-            left.style.transition = right.style.transition = \`all \${config.snap}s ease\`;
-            if(toggled) {
-                left.style.width = right.style.width = config.size + 'px';
-                left.style.left = '35px'; right.style.opacity = '1'; right.style.transform = 'scale(1.2)';
-                setTimeout(() => { left.style.transform = 'scale(0)'; right.style.transform = 'scale(1)'; }, config.snap * 300);
-            } else {
-                left.style.opacity = '1'; left.style.transform = 'scale(1.2)'; left.style.left = '8px';
-                setTimeout(() => { right.style.transform = 'scale(0)'; left.style.transform = 'scale(1)'; }, config.snap * 300);
-            }
-        }`;
-            } else { 
-                componentMarkup = `
-    <div class="gooey-container w-40 h-40 relative flex items-end justify-end p-4">
-        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">1</button>
-        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(${config.hue}, 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">2</button>
-        <button id="fab-main-btn" class="relative w-16 h-16 rounded-full flex items-center justify-center text-white" style="background-color: hsl(${config.hue}, 90%, 55%); z-index: 50;" onclick="toggleFab()">+</button>
-    </div>`;
-                componentScript = `
-        let open = false;
-        const config = { snap: ${config.snap}, wobble: ${config.wobble}, size: ${config.size} };
-        function toggleFab() {
-            open = !open;
-            const subs = document.querySelectorAll('.fab-sub');
-            subs.forEach((sub, i) => {
-                sub.style.transition = \`all \${config.snap + (i*0.1)}s ease\`;
-                if(open) {
-                    const ang = (Math.PI/2)*(i/1) + Math.PI;
-                    const tx = Math.cos(ang) * (80 + config.wobble);
-                    const ty = Math.sin(ang) * (80 + config.wobble);
-                    sub.style.transform = \`translate(\${tx}px, \${ty}px) scale(1)\`;
-                    sub.style.width = sub.style.height = config.size + 'px';
-                } else {
-                    sub.style.transform = 'translate(0,0) scale(0)';
-                }
-            });
-        }`;
-            }
+        componentScript = [
+            '        const config = {',
+            '            viscosity: ' + config.viscosity + ',',
+            '            spring: ' + config.spring + ',',
+            '            snap: ' + config.snap + ',',
+            '            hue: ' + config.hue + '',
+            '        };',
+            '        function switchTab(btn, index) {',
+            '            const tabs = document.querySelectorAll(".tab-item");',
+            '            const indicator = document.getElementById("tab-indicator");',
+            '            tabs.forEach((tab, i) => {',
+                '                tab.style.color = (i === index) ? "#fff" : "#94a3b8";',
+            '            });',
+            '            const leftOffset = 2 + (index * 24);',
+            '            if (config.viscosity > 0) {',
+            '                const currentLeft = parseFloat(indicator.style.left || 2);',
+            '                const distance = Math.abs(leftOffset - currentLeft);',
+            '                const stretchWidth = 21 + (distance * config.spring * 0.15);',
+            '                indicator.style.width = stretchWidth + "%";',
+            '                if (leftOffset < currentLeft) indicator.style.left = leftOffset + "%";',
+            '                setTimeout(() => {',
+            '                    indicator.style.width = "21%";',
+            '                    indicator.style.left = leftOffset + "%";',
+            '                }, config.snap * 500);',
+            '            } else {',
+            '                indicator.style.width = "21%";',
+            '                indicator.style.left = leftOffset + "%";',
+            '            }',
+            '        }',
+            '        document.querySelectorAll(".tab-item").forEach(btn => {',
+            '            btn.addEventListener("click", (e) => {',
+            '                const idx = parseInt(e.currentTarget.getAttribute("data-index"));',
+            '                switchTab(e.currentTarget, idx);',
+            '            });',
+            '        });'
+        ].join('\n');
+    } else if (activeComponentIdx === 1) { 
+        componentMarkup = [
+            '    <div id="pull-container" class="w-full max-w-[340px] h-[360px] rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden relative flex flex-col items-center justify-center pt-4 select-none">',
+            '        <div class="gooey-container w-full h-24 relative flex justify-center">',
+            '            <div class="absolute w-24 h-3.5 bg-slate-300 rounded-b-full top-0"></div>',
+            '            <div id="pull-fluid" class="absolute w-[' + config.size + 'px] h-[' + config.size + 'px] rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: hsl(' + config.hue + ', 90%, 55%);">',
+            '                <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">',
+            '                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>',
+            '                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>',
+            '                </svg>',
+            '            </div>',
+            '        </div>',
+            '        <div class="text-center mt-12"><p class="text-sm font-semibold text-slate-500">아래로 부드럽게 끌어내리세요</p></div>',
+            '    </div>'
+        ].join('\n');
 
-            const fullCode = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid UI Component - Standalone</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .gooey-container { filter: url('#export-gooey-filter'); }
-    </style>
-</head>
-<body>
+        componentScript = [
+            '        const config = {',
+            '            viscosity: ' + config.viscosity + ',',
+            '            damping: ' + config.damping + ',',
+            '            snap: ' + config.snap + ',',
+            '            wobble: ' + config.wobble + ',',
+            '            pull: ' + config.pull + ',',
+            '            size: ' + config.size + ',',
+            '            hue: ' + config.hue + '',
+            '        };',
+            '        const container = document.getElementById("pull-container");',
+            '        const fluid = document.getElementById("pull-fluid");',
+            '        const spinner = document.getElementById("spinner-icon");',
+            '        let startY = 0, pulling = false, dist = 0, refreshing = false;',
+            '        container.addEventListener("mousedown", (e) => {',
+            '            if(refreshing) return; pulling = true; startY = e.clientY; fluid.style.transition = "none";',
+            '        });',
+            '        container.addEventListener("touchstart", (e) => {',
+            '            if(refreshing) return; pulling = true; startY = e.touches[0].clientY; fluid.style.transition = "none";',
+            '        }, { passive: true });',
+            '        window.addEventListener("mousemove", (e) => {',
+            '            if(!pulling || refreshing) return;',
+            '            const dy = e.clientY - startY;',
+            '            if(dy > 0) {',
+            '                dist = Math.min(dy * (1 - config.damping * 0.4), config.pull);',
+            '                const sx = 1 - (dist/config.pull)*0.45*(config.viscosity/20);',
+            '                const sy = 1 + (dist/config.pull)*1.1*(config.viscosity/20);',
+            '                fluid.style.top = dist + "px";',
+            '                fluid.style.transform = "scale(" + sx + "," + sy + ")";',
+            '            }',
+            '        });',
+            '        window.addEventListener("touchmove", (e) => {',
+            '            if(!pulling || refreshing) return;',
+            '            const dy = e.touches[0].clientY - startY;',
+            '            if(dy > 0) {',
+            '                if(e.cancelable) e.preventDefault();',
+            '                dist = Math.min(dy * (1 - config.damping * 0.4), config.pull);',
+            '                const sx = 1 - (dist/config.pull)*0.45*(config.viscosity/20);',
+            '                const sy = 1 + (dist/config.pull)*1.1*(config.viscosity/20);',
+            '                fluid.style.top = dist + "px";',
+            '                fluid.style.transform = "scale(" + sx + "," + sy + ")";',
+            '            }',
+            '        }, { passive: false });',
+            '        function handleEnd() {',
+            '            if(!pulling) return; pulling = false;',
+            '            if(dist >= config.pull * 0.8) {',
+            '                refreshing = true;',
+            '                fluid.style.transition = "all " + config.snap + "s ease";',
+            '                fluid.style.top = (config.pull + 30) + "px";',
+            '                fluid.style.transform = "scale(0)";',
+            '                setTimeout(() => {',
+            '                    spinner.classList.remove("hidden");',
+            '                    fluid.style.top = "24px"; fluid.style.transform = "scale(1)";',
+            '                    fluid.style.width = "40px"; fluid.style.height = "40px";',
+            '                }, config.snap * 1000);',
+            '                setTimeout(() => {',
+            '                    refreshing = false; spinner.classList.add("hidden");',
+            '                    fluid.style.top = "0px"; fluid.style.width = config.size+"px"; fluid.style.height = config.size+"px";',
+            '                }, 3000);',
+            '            } else {',
+            '                fluid.style.transition = "all " + config.snap + "s cubic-bezier(0.175, 0.885, 0.32, " + (1 + config.wobble/30) + ")";',
+            '                fluid.style.top = "0px"; fluid.style.transform = "scale(1)";',
+            '            }',
+            '        }',
+            '        window.addEventListener("mouseup", handleEnd);',
+            '        window.addEventListener("touchend", handleEnd);'
+        ].join('\n');
+    } else if (activeComponentIdx === 2) { 
+        componentMarkup = [
+            '    <div id="mercury-switch" class="gooey-container bg-slate-100 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer">',
+            '        <div id="toggle-blob-left" class="absolute w-[' + config.size + 'px] h-[' + config.size + 'px] rounded-full transition-all" style="left: 8px; background-color: hsl(' + config.hue + ', 90%, 55%);"></div>',
+            '        <div id="toggle-blob-right" class="absolute w-[' + (config.size * 0.7) + 'px] h-[' + (config.size * 0.7) + 'px] rounded-full scale-0 opacity-0 transition-all" style="right: 12px; background-color: hsl(' + config.hue + ', 90%, 55%);"></div>',
+            '    </div>'
+        ].join('\n');
 
-    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
-        <defs>
-            <filter id="export-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="${config.viscosity}" result="blur" />
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${config.tension} ${config.threshold}" result="goo" />
-                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-            </filter>
-        </defs>
-    </svg>
+        componentScript = [
+            '        let toggled = false;',
+            '        const config = { snap: ' + config.snap + ', size: ' + config.size + ' };',
+            '        function toggleSwitch() {',
+            '            toggled = !toggled;',
+            '            const left = document.getElementById("toggle-blob-left");',
+            '            const right = document.getElementById("toggle-blob-right");',
+            '            left.style.transition = right.style.transition = "all " + config.snap + "s ease";',
+            '            if(toggled) {',
+            '                left.style.width = right.style.width = config.size + "px";',
+            '                left.style.left = "35px"; right.style.opacity = "1"; right.style.transform = "scale(1.2)";',
+            '                setTimeout(() => { left.style.transform = "scale(0)"; right.style.transform = "scale(1)"; }, config.snap * 300);',
+            '            } else {',
+            '                left.style.opacity = "1"; left.style.transform = "scale(1.2)"; left.style.left = "8px";',
+            '                setTimeout(() => { right.style.transform = "scale(0)"; left.style.transform = "scale(1)"; }, config.snap * 300);',
+            '            }',
+            '        }',
+            '        document.getElementById("mercury-switch").addEventListener("click", toggleSwitch);'
+        ].join('\n');
+    } else { 
+        componentMarkup = [
+            '    <div id="fab-container" class="gooey-container w-40 h-40 relative flex items-end justify-end p-4">',
+            '        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(' + config.hue + ', 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">1</button>',
+            '        <button class="fab-sub absolute w-12 h-12 rounded-full flex items-center justify-center text-white scale-0 transition-all" style="background-color: hsl(' + config.hue + ', 90%, 55%); bottom: 16px; right: 16px; z-index: 10;">2</button>',
+            '        <button id="fab-main-btn" class="relative w-16 h-16 rounded-full flex items-center justify-center text-white" style="background-color: hsl(' + config.hue + ', 90%, 55%); z-index: 50;">+</button>',
+            '    </div>'
+        ].join('\n');
 
-    ${componentMarkup}
+        componentScript = [
+            '        let open = false;',
+            '        const config = { snap: ' + config.snap + ', wobble: ' + config.wobble + ', size: ' + config.size + ' };',
+            '        function toggleFab() {',
+            '            open = !open;',
+            '            const subs = document.querySelectorAll(".fab-sub");',
+            '            subs.forEach((sub, i) => {',
+            '                sub.style.transition = "all " + (config.snap + (i*0.1)) + "s ease";',
+            '                if(open) {',
+            '                    const ang = (Math.PI/2)*(i/1) + Math.PI;',
+            '                    const tx = Math.cos(ang) * (80 + config.wobble);',
+            '                    const ty = Math.sin(ang) * (80 + config.wobble);',
+            '                    sub.style.transform = "translate(" + tx + "px," + ty + "px) scale(1)";',
+            '                    sub.style.width = sub.style.height = config.size + "px";',
+            '                } else {',
+            '                    sub.style.transform = "translate(0,0) scale(0)";',
+            '                    sub.style.width = sub.style.height = "48px";',
+            '                }',
+            '            });',
+            '        }',
+            '        document.getElementById("fab-main-btn").addEventListener("click", toggleFab);'
+        ].join('\n');
+    }
 
-    ${sTag}
-        ${componentScript}
-    ${eTag}
-</body>
-</html>`;
+    var htmlLines = [
+        '<!DOCTYPE html>',
+        '<html lang="ko">',
+        '<head>',
+        '    <meta charset="UTF-8">',
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+        '    <title>Liquid UI Component - Standalone</title>',
+        '    <script src="https://cdn.tailwindcss.com"></script>',
+        '    <style>',
+        '        body { background: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }',
+        '        .gooey-container { filter: url("#export-gooey-filter"); }',
+        '    </style>',
+        '</head>',
+        '<body>',
+        '',
+        '    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">',
+        '        <defs>',
+                '            <filter id="export-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">',
+            '                <feGaussianBlur in="SourceGraphic" stdDeviation="' + config.viscosity + '" result="blur" />',
+            '                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ' + config.tension + ' ' + config.threshold + '" result="goo" />',
+            '                <feComposite in="SourceGraphic" in2="goo" operator="atop" />',
+            '            </filter>',
+        '        </defs>',
+        '    </svg>',
+        '',
+        componentMarkup,
+        '',
+        sTag,
+        componentScript,
+        eTag,
+        '</body>',
+        '</html>'
+    ];
 
-            const tempTextArea = document.createElement("textarea");
-            tempTextArea.value = fullCode;
-            document.body.appendChild(tempTextArea);
-            tempTextArea.select();
-            try {
-                document.execCommand('copy');
-                const toast = document.getElementById('toast');
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
-            } catch (err) {
-                console.error('클립보드 복사 중 오류 발생:', err);
-            }
-            document.body.removeChild(tempTextArea);
-        }
+    var fullCode = htmlLines.join('\n');
 
-        selectComponent(0, 'comp-tab-bar');
-    </script>
+    var tempTextArea = document.createElement("textarea");
+    tempTextArea.value = fullCode;
+    document.body.appendChild(tempTextArea);
+    tempTextArea.select();
+    try {
+        document.execCommand('copy');
+        var toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 2000);
+    } catch (err) {
+        console.error('클립보드 복사 중 오류 발생:', err);
+    }
+    document.body.removeChild(tempTextArea);
+}
+
+selectComponent(0, 'comp-tab-bar');
+</script>
 
 ```
