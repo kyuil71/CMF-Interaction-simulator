@@ -2,23 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>액체 시뮬레이션 프로토타입</title>
+    <title>액체 시뮬레이션 프로토타입 v2</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { display: flex; height: 100vh; background: #1a1a1a; color: #fff; }
+        body { display: flex; height: 100vh; background: #1a1a1a; color: #fff; overflow: hidden; }
         
         /* 레이아웃 구조 */
         #canvas-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #111; overflow: hidden; }
-        #control-panel { width: 360px; background: #222; border-left: 1px solid #333; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        #control-panel { width: 360px; background: #222; border-left: 1px solid #333; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; transition: margin-right 0.3s ease, width 0.3s ease; position: relative; }
+        #control-panel.collapsed { margin-right: -360px; width: 0; padding: 0; border-left: none; overflow: hidden; }
         
+        /* 상단 유틸리티 바 (리셋 및 토글) */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: #222; width: 100%; padding: 10px 20px; border-bottom: 1px solid #333; position: absolute; top: 0; left: 0; z-index: 100; }
+        .top-bar-right { display: flex; gap: 10px; }
+        .utility-btn { background: #333; border: 1px solid #444; color: #fff; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .utility-btn:hover { background: #444; }
+
         /* 상단 탭 버튼 */
-        .tabs { display: flex; gap: 5px; width: 100%; }
+        .tabs { display: flex; gap: 5px; width: 100%; margin-top: 10px; }
         .tab-btn { flex: 1; padding: 10px; background: #333; border: none; color: #aaa; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 12px; }
         .tab-btn.active { background: #007bff; color: #fff; }
-
-        /* 사각형 버튼 인터랙션 영역 (옵션1용) */
-        #trigger-button { padding: 20px 4px; width: 140px; height: 140px; background: #444; border: 2px solid #666; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 10; transition: background 0.2s; text-align: center; line-height: 1.4; }
-        #trigger-button:active { background: #555; }
 
         /* 슬라이더 스타일 */
         .control-group { display: flex; flex-direction: column; gap: 8px; background: #2a2a2a; padding: 12px; border-radius: 6px; }
@@ -27,26 +30,30 @@
         .control-group input[type="range"] { width: 100%; }
         .control-group input[type="color"] { width: 100%; height: 35px; border: none; cursor: pointer; background: transparent; }
         
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
         .hidden { display: none !important; }
         .info-text { font-size: 12px; color: #888; text-align: center; }
+        
+        /* 외부 플로팅 접기 토글 버튼 (패널이 숨겨졌을 때도 보이도록) */
+        #floating-toggle { position: absolute; top: 12px; right: 20px; z-index: 101; background: #007bff; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        #floating-toggle:hover { background: #0056b3; }
     </style>
 </head>
 <body>
 
     <div id="canvas-container">
+        <button id="floating-toggle" onclick="togglePanel()">설정창 접기 ◀</button>
         <canvas id="simCanvas"></canvas>
-        <button id="trigger-button">여기를 눌러서<br>물방울 터뜨리기</button>
     </div>
 
     <div id="control-panel">
-        <h3>시뮬레이션 설정</h3>
+        <div style="height: 35px;"></div> <h3>시뮬레이션 설정</h3>
         <div class="tabs">
             <button class="tab-btn active" onclick="switchMode(1)">옵션 1</button>
             <button class="tab-btn" onclick="switchMode(2)">옵션 2</button>
             <button class="tab-btn" onclick="switchMode(3)">옵션 3</button>
         </div>
-        <p class="info-text" id="mode-desc">옵션 1: 사각형 버튼을 누르면 물방울이 사방으로 퍼집니다.</p>
+        <p class="info-text" id="mode-desc">옵션 1: 화면 아무 곳이나 누르면 그라데이션 물방울이 퍼져나갑니다.</p>
 
         <hr style="border-color: #333;">
 
@@ -65,16 +72,16 @@
                 <input type="range" id="opt1-speed" min="1" max="10" value="5">
             </div>
             <div class="control-group">
-                <label>물방울 점성 (뭉침) <span id="v-opt1-visc">20</span></label>
-                <input type="range" id="opt1-visc" min="5" max="40" value="20">
+                <label>물방울 점성 (뭉침) <span id="v-opt1-visc">15</span></label>
+                <input type="range" id="opt1-visc" min="5" max="30" value="15">
             </div>
             <div class="control-group">
-                <label>물방울 개수 <span id="v-opt1-count">20</span></label>
-                <input type="range" id="opt1-count" min="5" max="50" value="20">
+                <label>물방울 개수 <span id="v-opt1-count">25</span></label>
+                <input type="range" id="opt1-count" min="5" max="60" value="25">
             </div>
             <div class="control-group">
-                <label>물방울 크기 <span id="v-opt1-size">25</span></label>
-                <input type="range" id="opt1-size" min="10" max="50" value="25">
+                <label>물방울 크기 <span id="v-opt1-size">30</span></label>
+                <input type="range" id="opt1-size" min="10" max="60" value="30">
             </div>
         </div>
 
@@ -99,13 +106,20 @@
                 <input type="range" id="opt3-speed" min="1" max="5" value="2">
             </div>
             <div class="control-group">
-                <label>섬유질 불규칙도 <span id="v-opt3-noise">5</span></label>
-                <input type="range" id="opt3-noise" min="1" max="15" value="5">
+                <label>섬유질 불규칙도 <span id="v-opt3-noise">8</span></label>
+                <input type="range" id="opt3-noise" min="2" max="20" value="8">
             </div>
             <div class="control-group">
-                <label>번짐 한계 범위 <span id="v-opt3-limit">150</span></label>
-                <input type="range" id="opt3-limit" min="50" max="300" value="150">
+                <label>번짐 한계 범위 <span id="v-opt3-limit">160</span></label>
+                <input type="range" id="opt3-limit" min="50" max="300" value="160">
             </div>
+        </div>
+    </div>
+
+    <div class="top-bar" id="global-top-bar" style="width: 360px; left: auto; right: 0;">
+        <span style="font-size: 13px; font-weight: bold; color: #ccc;">대시보드 유틸</span>
+        <div class="top-bar-right">
+            <button class="utility-btn" onclick="resetSimulation()">🔄 리셋</button>
         </div>
     </div>
 
@@ -113,7 +127,7 @@
         <defs>
             <filter id="gooey">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="gooey" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -12" result="gooey" />
                 <feBlend in="SourceGraphic" in2="gooey" />
             </filter>
         </defs>
@@ -122,14 +136,16 @@
     <script>
         const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
-        const btn = document.getElementById('trigger-button');
+        const panel = document.getElementById('control-panel');
+        const topBar = document.getElementById('global-top-bar');
+        const toggleBtn = document.getElementById('floating-toggle');
         
         let currentMode = 1;
         let particles = [];
         let ripples = [];
         let stains = [];
 
-        // 화면 크기 맞춤
+        // 캔버스 크기 조정
         function resize() {
             canvas.width = canvas.parentElement.clientWidth;
             canvas.height = canvas.parentElement.clientHeight;
@@ -137,39 +153,51 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // 탭 전환 시스템 (에러 방지를 위해 안전하게 구조화)
+        // 컨트롤 패널 열기/접기 토글 기능
+        function togglePanel() {
+            panel.classList.toggle('collapsed');
+            if(panel.classList.contains('collapsed')) {
+                toggleBtn.innerText = "설정창 열기 ▶";
+                topBar.style.display = "none";
+            } else {
+                toggleBtn.innerText = "설정창 접기 ◀";
+                topBar.style.display = "flex";
+            }
+            setTimeout(resize, 310); // 애니메이션 시간 이후 캔버스 리사이즈 처리
+        }
+
+        // 전체 시뮬레이션 상태 초기화 (리셋 버튼)
+        function resetSimulation() {
+            particles = [];
+            ripples = [];
+            stains = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 모드(옵션) 전환
         function switchMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.tab-btn').forEach((b, i) => {
-                b.classList.toggle('active', i === mode - 1);
-            });
-            
-            document.querySelectorAll('.mode-controls').forEach((c, i) => {
-                c.classList.toggle('hidden', i !== mode - 1);
-            });
+            document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === mode - 1));
+            document.querySelectorAll('.mode-controls').forEach((c, i) => c.classList.toggle('hidden', i !== mode - 1));
 
-            // 안내 문구 및 트리거 제어
             const desc = document.getElementById('mode-desc');
             if(mode === 1) {
-                desc.innerText = "옵션 1: 사각형 버튼을 누르면 물방울이 사방으로 퍼집니다.";
-                btn.classList.remove('hidden');
+                desc.innerText = "옵션 1: 화면 아무 곳이나 누르면 그라데이션 물방울이 퍼져나갑니다.";
                 document.getElementById('fluidColor').value = "#ffffff";
                 document.getElementById('bgColor').value = "#222222";
             } else if(mode === 2) {
-                desc.innerText = "옵션 2: 화면 아무 곳이나 클릭하면 위에서 물방울이 떨어져 녹아듭니다.";
-                btn.classList.add('hidden');
-                document.getElementById('fluidColor').value = "#000000"; // 기본 블랙 테스트 가능하도록
+                desc.innerText = "옵션 2: 클릭 지점에 물방울이 떨어져 자연스러운 블러 효과와 함께 융합됩니다.";
+                document.getElementById('fluidColor').value = "#000000"; 
                 document.getElementById('bgColor').value = "#ffffff";
             } else {
-                desc.innerText = "옵션 3: 화면을 클릭하면 휴지 섬유를 따라 오일이 흡수되어 번집니다.";
-                btn.classList.add('hidden');
-                document.getElementById('fluidColor').value = "#555555";
-                document.getElementById('bgColor').value = "#eaddca"; // 휴지 색상
+                desc.innerText = "옵션 3: 클릭 시 휴지 섬유를 따라 부드러운 곡선 굴곡과 외곽 그라데이션을 형성하며 번집니다.";
+                document.getElementById('fluidColor').value = "#4a3c31";
+                document.getElementById('bgColor').value = "#f4f1ea"; // 부드러운 한지/휴지 톤
             }
-            particles = []; ripples = []; stains = []; // 초기화
+            resetSimulation();
         }
 
-        // 실시간 수치 표기 업데이트 업데이트 루프
+        // 실시간 텍스트 수치 업데이트 가동
         setInterval(() => {
             ['opt1-speed', 'opt1-visc', 'opt1-count', 'opt1-size', 'opt2-blur', 'opt2-spread', 'opt2-force', 'opt3-speed', 'opt3-noise', 'opt3-limit'].forEach(id => {
                 const el = document.getElementById(id);
@@ -178,100 +206,114 @@
             });
         }, 100);
 
-        // --- 옵션 1 로직 ---
-        btn.addEventListener('click', () => {
-            if(currentMode !== 1) return;
-            const rect = btn.getBoundingClientRect();
-            const cRect = canvas.getBoundingClientRect();
-            const startX = (rect.left + rect.width/2) - cRect.left;
-            const startY = (rect.top + rect.height/2) - cRect.top;
-            
-            const count = parseInt(document.getElementById('opt1-count').value);
-            const speedScale = parseInt(document.getElementById('opt1-speed').value) * 0.5;
-            const size = parseInt(document.getElementById('opt1-size').value);
+        // HEX 색상을 RGBA 문자열로 변환해주는 헬퍼 함수 (그라데이션 투명도 구현 전용)
+        function hexToRgb(hex) {
+            let c = hex.substring(1);
+            if(c.length === 3) c = c.split('').map(s => s+s).join('');
+            let num = parseInt(c, 16);
+            return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+        }
 
-            for(let i=0; i<count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const force = (Math.random() * 5 + 2) * speedScale;
-                particles.push({
-                    x: startX, y: startY,
-                    vx: Math.cos(angle) * force, vy: Math.sin(angle) * force,
-                    radius: Math.random() * size + size/2,
-                    alpha: 1
-                });
-            }
-        });
-
-        // --- 옵션 2 & 3 마우스 클릭 이벤트 ---
+        // --- 마우스 전역 클릭 인터랙션 핸들러 ---
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            if (currentMode === 2) {
-                // 옵션 2: 낙하 충격량 및 설정 적용
+            const fColor = document.getElementById('fluidColor').value;
+
+            if (currentMode === 1) {
+                // 옵션 1: 이제 사각형 구속 없이 전역 어디서나 터짐 발생
+                const count = parseInt(document.getElementById('opt1-count').value);
+                const speedScale = parseInt(document.getElementById('opt1-speed').value) * 0.4;
+                const size = parseInt(document.getElementById('opt1-size').value);
+
+                for(let i=0; i<count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const force = (Math.random() * 5 + 1) * speedScale;
+                    particles.push({
+                        x: x, y: y,
+                        vx: Math.cos(angle) * force, vy: Math.sin(angle) * force,
+                        maxRadius: Math.random() * size + size/2,
+                        radius: 5,
+                        alpha: 1
+                    });
+                }
+            } 
+            else if (currentMode === 2) {
                 const force = parseInt(document.getElementById('opt2-force').value);
                 ripples.push({ x, y, radius: 5, maxRadius: force * 3, alpha: 1, blur: 0 });
-            } else if (currentMode === 3) {
-                // 옵션 3: 완벽하게 작동하는 흡수점 생성
+            } 
+            else if (currentMode === 3) {
+                // 옵션 3: 곡선화 처리를 위한 구조적 원형 포인트 맵 계산
                 const limit = parseInt(document.getElementById('opt3-limit').value);
                 const noise = parseInt(document.getElementById('opt3-noise').value);
                 
-                // 불규칙한 다각형 모양의 섬유 경로 미리 계산
                 let points = [];
-                const steps = 30;
+                const steps = 24; // 부드러운 곡선 구조를 만드는 분할점 개수
                 for(let i=0; i<steps; i++) {
                     let angle = (i / steps) * Math.PI * 2;
-                    let randDist = limit * (0.7 + Math.random() * 0.4);
+                    // 섬유 결에 따른 굴곡 반경 타겟팅
+                    let randDist = limit * (0.6 + Math.random() * 0.5);
                     points.push({
                         angle: angle,
                         targetDist: randDist,
-                        currentDist: 5,
-                        noiseOffset: Math.random() * noise
+                        currentDist: 4,
+                        noiseSeed: Math.random() * noise
                     });
                 }
-                stains.push({ x, y, points, currentRadius: 5, maxRadius: limit, alpha: 0.8 });
+                stains.push({ x, y, points, maxRadius: limit, alpha: 0.9 });
             }
         });
 
-        // --- 메인 애니메이션 루프 (안전 최적화) ---
+        // --- 메인 그래픽 렌더링 애니메이션 루프 ---
         function animate() {
             const fColor = document.getElementById('fluidColor').value;
             const bColor = document.getElementById('bgColor').value;
+            const rgb = hexToRgb(fColor);
 
-            // 배경 채우기
+            // 매 프레임 배경 청소
             ctx.fillStyle = bColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // --- 옵션 1 렌더링 (SVG 필터 연동) ---
+            // --- 옵션 1: 자연스러운 방사형 그라데이션 입자 확산 ---
             if (currentMode === 1 && particles.length > 0) {
                 ctx.save();
                 const visc = parseInt(document.getElementById('opt1-visc').value);
-                // 필터 스텐실 강도 조절
                 document.getElementById('gooey').firstElementChild.setAttribute('stdDeviation', visc);
                 canvas.style.filter = "url(#gooey)";
                 
-                ctx.fillStyle = fColor;
                 for(let i = particles.length - 1; i >= 0; i--) {
                     let p = particles[i];
                     p.x += p.vx;
                     p.y += p.vy;
-                    p.vx *= 0.95; // 마찰력
-                    p.vy *= 0.95;
-                    p.radius *= 0.98; // 서서히 작아짐
+                    p.vx *= 0.94; // 물리 마찰 저항
+                    p.vy *= 0.94;
+                    
+                    if(p.radius < p.maxRadius) p.radius += 1.5;
+                    p.alpha -= 0.012; // 그라데이션 소멸 속도 가속화
 
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fill();
+                    if(p.radius > 1 && p.alpha > 0) {
+                        // 개별 입자 내부 방사형 그라데이션 주입
+                        let grad = ctx.createRadialGradient(p.x, p.y, p.radius * 0.1, p.x, p.y, p.radius);
+                        grad.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${p.alpha})`);
+                        grad.addColorStop(0.6, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${p.alpha * 0.5})`);
+                        grad.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
+                        
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
 
-                    if(p.radius < 1) particles.splice(i, 1);
+                    if(p.alpha <= 0) particles.splice(i, 1);
                 }
                 ctx.restore();
             } else {
                 canvas.style.filter = "none";
             }
 
-            // --- 옵션 2 렌더링 (탑다운 시선 블러 융합 효과) ---
+            // --- 옵션 2: 오일 층 내부 감쇄 융합 블러 ---
             if (currentMode === 2 && ripples.length > 0) {
                 const blurScale = parseInt(document.getElementById('opt2-blur').value);
                 const spreadSpeed = parseInt(document.getElementById('opt2-spread').value);
@@ -279,15 +321,20 @@
                 for(let i = ripples.length - 1; i >= 0; i--) {
                     let r = ripples[i];
                     r.radius += spreadSpeed * 1.5;
-                    r.blur += blurScale * 0.15; // 퍼질수록 부드럽게 녹아듦 (블러 증가)
-                    r.alpha -= 0.01; // 천천히 투명해짐
+                    r.blur += blurScale * 0.2; 
+                    r.alpha -= 0.012; 
 
                     ctx.save();
-                    // 레이어 단위 안전 블러 처리로 멈춤 현상 완벽 방지
                     ctx.filter = `blur(${r.blur}px)`;
                     ctx.globalAlpha = r.alpha;
-                    ctx.fillStyle = fColor;
                     
+                    // 파문 그라데이션 연출
+                    let grad = ctx.createRadialGradient(r.x, r.y, r.radius * 0.2, r.x, r.y, r.radius);
+                    grad.addColorStop(0, fColor);
+                    grad.addColorStop(0.8, fColor);
+                    grad.addColorStop(1, "transparent");
+                    
+                    ctx.fillStyle = grad;
                     ctx.beginPath();
                     ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
                     ctx.fill();
@@ -297,44 +344,63 @@
                 }
             }
 
-            // --- 옵션 3 렌더링 (휴지 모세관 현상 완전 정상화 구동) ---
+            // --- 옵션 3: 곡선형 섬유질 조직 흡수 및 외곽 흐림 번짐 ---
             if (currentMode === 3 && stains.length > 0) {
                 const absSpeed = parseInt(document.getElementById('opt3-speed').value);
                 
                 for(let i = stains.length - 1; i >= 0; i--) {
                     let s = stains[i];
                     ctx.save();
-                    ctx.fillStyle = fColor;
-                    ctx.globalAlpha = s.alpha;
                     
-                    // 불규칙 번짐 외곽선 그리기
-                    ctx.beginPath();
+                    // 흡수 포인트들의 물리적 외곽선 보간 연산
                     let finishedPoints = 0;
+                    let polyPoints = [];
                     
-                    s.points.forEach((pt, idx) => {
+                    s.points.forEach((pt) => {
                         if(pt.currentDist < pt.targetDist) {
-                            pt.currentDist += absSpeed * (0.5 + Math.random() * 0.5);
+                            pt.currentDist += absSpeed * (0.4 + Math.random() * 0.6);
                         } else {
                             finishedPoints++;
                         }
                         
-                        // 노이즈 굴곡 추가
-                        let currentDistWithNoise = pt.currentDist + (Math.sin(Date.now()*0.01 + pt.noiseOffset) * 2);
-                        let posX = s.x + Math.cos(pt.angle) * currentDistWithNoise;
-                        let posY = s.y + Math.sin(pt.angle) * currentDistWithNoise;
-                        
-                        if(idx === 0) ctx.moveTo(posX, posY);
-                        else ctx.lineTo(posX, posY);
+                        // 자연스러운 곡선 제어를 위해 사인파 노이즈 소폭 추가
+                        let dynamicDist = pt.currentDist + Math.sin(Date.now() * 0.005 + pt.noiseSeed) * (pt.noiseSeed * 0.3);
+                        let px = s.x + Math.cos(pt.angle) * dynamicDist;
+                        let py = s.y + Math.sin(pt.angle) * dynamicDist;
+                        polyPoints.push({x: px, y: py});
                     });
+
+                    // 1. 외곽 영역으로 갈수록 은은하게 사라지는 방사형 그라데이션 필터 정의
+                    let maxCurrentDist = Math.max(...s.points.map(p => p.currentDist));
+                    let grad = ctx.createRadialGradient(s.x, s.y, maxCurrentDist * 0.3, s.x, s.y, maxCurrentDist + 10);
+                    grad.addColorStop(0, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${s.alpha})`);
+                    grad.addColorStop(0.7, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${s.alpha * 0.7})`);
+                    grad.addColorStop(0.95, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${s.alpha * 0.15})`);
+                    grad.addColorStop(1, `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0)`);
                     
+                    ctx.fillStyle = grad;
+                    
+                    // 2. 수학적 곡선(Quadratic Curves)을 이용한 직각 모서리 완전 완화 및 스무딩 처리
+                    ctx.beginPath();
+                    if(polyPoints.length > 0) {
+                        ctx.moveTo(polyPoints[0].x, polyPoints[0].y);
+                        
+                        for (let j = 0; j < polyPoints.length; j++) {
+                            let nextPt = polyPoints[(j + 1) % polyPoints.length];
+                            // 인접점들의 중간 지점을 곡선의 제어 포인트로 활용해 각진 직각 현상을 원천 방지
+                            let midX = (polyPoints[j].x + nextPt.x) / 2;
+                            let midY = (polyPoints[j].y + nextPt.y) / 2;
+                            ctx.quadraticCurveTo(polyPoints[j].x, polyPoints[j].y, midX, midY);
+                        }
+                    }
                     ctx.closePath();
                     ctx.fill();
                     ctx.restore();
 
-                    // 다 번지면 고정상태 유지 (지우지 않고 흔적을 남김으로써 리얼함 가중)
+                    // 모든 섬유 조직에 흡수가 완료되면 영구 얼룩 고착 단계 진입
                     if(finishedPoints >= s.points.length) {
-                        s.alpha -= 0.002; // 서서히 휴지에 스며들어 고착화
-                        if(s.alpha <= 0.2) s.alpha = 0.2; // 얼룩 잔상 남김
+                        s.alpha -= 0.001; 
+                        if(s.alpha <= 0.35) s.alpha = 0.35; // 완전히 지워지지 않고 리얼한 자국을 화면에 유지
                     }
                 }
             }
@@ -342,7 +408,7 @@
             requestAnimationFrame(animate);
         }
 
-        // 루프 실행
+        // 전체 애니메이션 가동 루프 시작
         animate();
     </script>
 </body>
