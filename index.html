@@ -1,239 +1,349 @@
-```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Liquid GUI Micro-Interaction Lab</title>
-    <!-- Tailwind CSS CDN 로드 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 외부 커스텀 스타일시트 연결 -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="w-full h-full">
+    <title>액체 시뮬레이션 프로토타입</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { display: flex; height: 100vh; background: #1a1a1a; color: #fff; }
+        
+        /* 레이아웃 구조 */
+        #canvas-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #111; overflow: hidden; }
+        #control-panel { width: 360px; background: #222; border-left: 1px solid #333; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        
+        /* 상단 탭 버튼 */
+        .tabs { display: flex; gap: 5px; width: 100%; }
+        .tab-btn { flex: 1; padding: 10px; background: #333; border: none; color: #aaa; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .tab-btn.active { background: #007bff; color: #fff; }
 
-    <!-- 자석처럼 뭉치는 물리 필터 정의 (외곽 잘림 방지용 확장 세팅) -->
-    <svg xmlns="http://www.w3.org/2000/svg" class="absolute w-0 h-0" style="pointer-events: none;">
+        /* 사각형 버튼 인터랙션 영역 (옵션1용) */
+        #trigger-button { padding: 20px 4px; width: 140px; height: 140px; background: #444; border: 2px solid #666; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 10; transition: background 0.2s; text-align: center; line-height: 1.4; }
+        #trigger-button:active { background: #555; }
+
+        /* 슬라이더 스타일 */
+        .control-group { display: flex; flex-direction: column; gap: 8px; background: #2a2a2a; padding: 12px; border-radius: 6px; }
+        .control-group label { font-size: 13px; color: #ccc; display: flex; justify-content: space-between; }
+        .control-group label span { color: #007bff; font-weight: bold; }
+        .control-group input[type="range"] { width: 100%; }
+        .control-group input[type="color"] { width: 100%; height: 35px; border: none; cursor: pointer; background: transparent; }
+        
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; }
+        .hidden { display: none !important; }
+        .info-text { font-size: 12px; color: #888; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="simCanvas"></canvas>
+        <button id="trigger-button">여기를 눌러서<br>물방울 터뜨리기</button>
+    </div>
+
+    <div id="control-panel">
+        <h3>시뮬레이션 설정</h3>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchMode(1)">옵션 1</button>
+            <button class="tab-btn" onclick="switchMode(2)">옵션 2</button>
+            <button class="tab-btn" onclick="switchMode(3)">옵션 3</button>
+        </div>
+        <p class="info-text" id="mode-desc">옵션 1: 사각형 버튼을 누르면 물방울이 사방으로 퍼집니다.</p>
+
+        <hr style="border-color: #333;">
+
+        <div class="control-group">
+            <label>액체 색상 (검은색/흰색 가능)</label>
+            <input type="color" id="fluidColor" value="#ffffff">
+        </div>
+        <div class="control-group">
+            <label>배경 색상 (검은색/흰색 가능)</label>
+            <input type="color" id="bgColor" value="#222222">
+        </div>
+
+        <div id="controls-mode1" class="mode-controls">
+            <div class="control-group">
+                <label>퍼짐 속도 <span id="v-opt1-speed">5</span></label>
+                <input type="range" id="opt1-speed" min="1" max="10" value="5">
+            </div>
+            <div class="control-group">
+                <label>물방울 점성 (뭉침) <span id="v-opt1-visc">20</span></label>
+                <input type="range" id="opt1-visc" min="5" max="40" value="20">
+            </div>
+            <div class="control-group">
+                <label>물방울 개수 <span id="v-opt1-count">20</span></label>
+                <input type="range" id="opt1-count" min="5" max="50" value="20">
+            </div>
+            <div class="control-group">
+                <label>물방울 크기 <span id="v-opt1-size">25</span></label>
+                <input type="range" id="opt1-size" min="10" max="50" value="25">
+            </div>
+        </div>
+
+        <div id="controls-mode2" class="mode-controls hidden">
+            <div class="control-group">
+                <label>블러 감쇄율 (녹아드는 속도) <span id="v-opt2-blur">3</span></label>
+                <input type="range" id="opt2-blur" min="1" max="10" value="3">
+            </div>
+            <div class="control-group">
+                <label>파문 확산 속도 <span id="v-opt2-spread">4</span></label>
+                <input type="range" id="opt2-spread" min="1" max="10" value="4">
+            </div>
+            <div class="control-group">
+                <label>낙하 충격량 (크기) <span id="v-opt2-force">40</span></label>
+                <input type="range" id="opt2-force" min="20" max="80" value="40">
+            </div>
+        </div>
+
+        <div id="controls-mode3" class="mode-controls hidden">
+            <div class="control-group">
+                <label>휴지 흡수율 (번짐 속도) <span id="v-opt3-speed">2</span></label>
+                <input type="range" id="opt3-speed" min="1" max="5" value="2">
+            </div>
+            <div class="control-group">
+                <label>섬유질 불규칙도 <span id="v-opt3-noise">5</span></label>
+                <input type="range" id="opt3-noise" min="1" max="15" value="5">
+            </div>
+            <div class="control-group">
+                <label>번짐 한계 범위 <span id="v-opt3-limit">150</span></label>
+                <input type="range" id="opt3-limit" min="50" max="300" value="150">
+            </div>
+        </div>
+    </div>
+
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" style="display:none;">
         <defs>
-            <filter id="fluid-gooey-filter" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur" id="svg-blur" />
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 32 -13" result="goo" id="svg-matrix" />
-                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            <filter id="gooey">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="gooey" />
+                <feBlend in="SourceGraphic" in2="gooey" />
             </filter>
         </defs>
     </svg>
 
-    <!-- 전체 화면 앱 구조 -->
-    <div class="flex h-screen w-screen overflow-hidden relative">
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const btn = document.getElementById('trigger-button');
+        
+        let currentMode = 1;
+        let particles = [];
+        let ripples = [];
+        let stains = [];
 
-        <!-- 메인 인터랙션 뷰 포트 -->
-        <main class="flex-grow h-full flex flex-col items-center justify-between p-4 md:p-10 relative">
+        // 화면 크기 맞춤
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 탭 전환 시스템 (에러 방지를 위해 안전하게 구조화)
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach((b, i) => {
+                b.classList.toggle('active', i === mode - 1);
+            });
             
-            <!-- 상단 정보 바 -->
-            <div class="w-full max-w-lg flex justify-between items-center z-10">
-                <div>
-                    <h1 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Micro-Interaction Lab</h1>
-                    <p class="text-lg font-extrabold tracking-tight" id="active-component-title">1. Gooey Tab Navigation</p>
-                </div>
-                <div class="flex gap-1.5">
-                    <!-- 테마 버튼 -->
-                    <button id="theme-btn" class="w-9 h-9 rounded-full glass-panel flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
-                        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                    </button>
-                    <!-- 우측 제어 서랍 토글 버튼 -->
-                    <button id="sidebar-toggle" class="w-9 h-9 rounded-full glass-panel flex items-center justify-center text-sky-500 hover:scale-105 active:scale-95 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x1="20" y1="12" y2="12"/><line x1="4" x1="20" y1="6" y2="6"/><line x1="4" x1="20" y1="18" y2="18"/></svg>
-                    </button>
-                </div>
-            </div>
+            document.querySelectorAll('.mode-controls').forEach((c, i) => {
+                c.classList.toggle('hidden', i !== mode - 1);
+            });
 
-            <!-- 중앙 인터랙티브 쇼케이스 하우징 -->
-            <div class="w-full max-w-lg flex-grow flex items-center justify-center relative min-h-[340px]">
+            // 안내 문구 및 트리거 제어
+            const desc = document.getElementById('mode-desc');
+            if(mode === 1) {
+                desc.innerText = "옵션 1: 사각형 버튼을 누르면 물방울이 사방으로 퍼집니다.";
+                btn.classList.remove('hidden');
+                document.getElementById('fluidColor').value = "#ffffff";
+                document.getElementById('bgColor').value = "#222222";
+            } else if(mode === 2) {
+                desc.innerText = "옵션 2: 화면 아무 곳이나 클릭하면 위에서 물방울이 떨어져 녹아듭니다.";
+                btn.classList.add('hidden');
+                document.getElementById('fluidColor').value = "#000000"; // 기본 블랙 테스트 가능하도록
+                document.getElementById('bgColor').value = "#ffffff";
+            } else {
+                desc.innerText = "옵션 3: 화면을 클릭하면 휴지 섬유를 따라 오일이 흡수되어 번집니다.";
+                btn.classList.add('hidden');
+                document.getElementById('fluidColor').value = "#555555";
+                document.getElementById('bgColor').value = "#eaddca"; // 휴지 색상
+            }
+            particles = []; ripples = []; stains = []; // 초기화
+        }
+
+        // 실시간 수치 표기 업데이트 업데이트 루프
+        setInterval(() => {
+            ['opt1-speed', 'opt1-visc', 'opt1-count', 'opt1-size', 'opt2-blur', 'opt2-spread', 'opt2-force', 'opt3-speed', 'opt3-noise', 'opt3-limit'].forEach(id => {
+                const el = document.getElementById(id);
+                const vEl = document.getElementById('v-' + id);
+                if(el && vEl) vEl.innerText = el.value;
+            });
+        }, 100);
+
+        // --- 옵션 1 로직 ---
+        btn.addEventListener('click', () => {
+            if(currentMode !== 1) return;
+            const rect = btn.getBoundingClientRect();
+            const cRect = canvas.getBoundingClientRect();
+            const startX = (rect.left + rect.width/2) - cRect.left;
+            const startY = (rect.top + rect.height/2) - cRect.top;
+            
+            const count = parseInt(document.getElementById('opt1-count').value);
+            const speedScale = parseInt(document.getElementById('opt1-speed').value) * 0.5;
+            const size = parseInt(document.getElementById('opt1-size').value);
+
+            for(let i=0; i<count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const force = (Math.random() * 5 + 2) * speedScale;
+                particles.push({
+                    x: startX, y: startY,
+                    vx: Math.cos(angle) * force, vy: Math.sin(angle) * force,
+                    radius: Math.random() * size + size/2,
+                    alpha: 1
+                });
+            }
+        });
+
+        // --- 옵션 2 & 3 마우스 클릭 이벤트 ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (currentMode === 2) {
+                // 옵션 2: 낙하 충격량 및 설정 적용
+                const force = parseInt(document.getElementById('opt2-force').value);
+                ripples.push({ x, y, radius: 5, maxRadius: force * 3, alpha: 1, blur: 0 });
+            } else if (currentMode === 3) {
+                // 옵션 3: 완벽하게 작동하는 흡수점 생성
+                const limit = parseInt(document.getElementById('opt3-limit').value);
+                const noise = parseInt(document.getElementById('opt3-noise').value);
                 
-                <!-- [컴포넌트 1] 유동형 탭 네비게이션 -->
-                <div id="comp-tab-bar" class="comp-view w-full p-4 flex flex-col items-center gap-6">
-                    <div class="w-full max-w-[340px] h-[64px] rounded-[24px] bg-slate-100 dark:bg-slate-900/60 p-1.5 relative border border-slate-200/40 dark:border-slate-800/40 overflow-hidden">
-                        
-                        <!-- 1. 구이 필터 전용 배경 유체 레이어 (글자 번짐 차단용) -->
-                        <div class="gooey-layer absolute inset-0 w-full h-full pointer-events-none">
-                            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[12.5%] -translate-x-1/2"></div>
-                            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[37.5%] -translate-x-1/2"></div>
-                            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[62.5%] -translate-x-1/2"></div>
-                            <div class="absolute w-[20px] h-[20px] rounded-full bg-slate-200/50 dark:bg-slate-800/50 top-5 left-[87.5%] -translate-x-1/2"></div>
-                            
-                            <!-- 가속 비례 팽창 수축 인디케이터 구체 -->
-                            <div id="tab-indicator" class="absolute h-[40px] w-[21%] rounded-[16px] top-2 transition-all duration-300" style="background-color: var(--accent-color); left: 2%;"></div>
-                        </div>
+                // 불규칙한 다각형 모양의 섬유 경로 미리 계산
+                let points = [];
+                const steps = 30;
+                for(let i=0; i<steps; i++) {
+                    let angle = (i / steps) * Math.PI * 2;
+                    let randDist = limit * (0.7 + Math.random() * 0.4);
+                    points.push({
+                        angle: angle,
+                        targetDist: randDist,
+                        currentDist: 5,
+                        noiseOffset: Math.random() * noise
+                    });
+                }
+                stains.push({ x, y, points, currentRadius: 5, maxRadius: limit, alpha: 0.8 });
+            }
+        });
 
-                        <!-- 2. 완전히 격리된 선명한 텍스트 버튼 레이어 -->
-                        <div class="absolute inset-0 w-full h-full flex justify-between items-center px-1 z-10">
-                            <button class="tab-item text-xs font-bold text-white flex-1 text-center h-full transition-colors" data-index="0">Home</button>
-                            <button class="tab-item text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center h-full transition-colors" data-index="1">Explore</button>
-                            <button class="tab-item text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center h-full transition-colors" data-index="2">Messages</button>
-                            <button class="tab-item text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 flex-1 text-center h-full transition-colors" data-index="3">Profile</button>
-                        </div>
-                    </div>
-                    <p class="text-xs text-slate-400 text-center px-4 leading-relaxed">탭을 조작할 때 물방울이 옆으로 끈적하게 밀려가며 병합되는 무브먼트입니다.</p>
-                </div>
+        // --- 메인 애니메이션 루프 (안전 최적화) ---
+        function animate() {
+            const fColor = document.getElementById('fluidColor').value;
+            const bColor = document.getElementById('bgColor').value;
 
-                <!-- [컴포넌트 2] 끌어서 새로고침 (Pull-to-Refresh) -->
-                <div id="comp-pull-refresh" class="comp-view w-full max-w-[340px] h-[360px] rounded-3xl border border-slate-200/50 dark:border-slate-800/30 glass-panel overflow-hidden relative hidden flex-col justify-between p-6">
-                    <div id="pull-container" class="absolute inset-0 w-full h-full flex flex-col justify-start pt-4 cursor-grab active:cursor-grabbing select-none">
-                        <div class="gooey-layer w-full h-24 relative flex justify-center">
-                            <div class="absolute w-28 h-3.5 bg-slate-300 dark:bg-slate-700 rounded-b-full top-0"></div>
-                            <!-- 가늘게 늘어나다가 스냅되어 끊기는 오일 방울 -->
-                            <div id="pull-fluid" class="absolute w-12 h-12 rounded-full top-0 origin-top flex items-center justify-center transition-all duration-100" style="background-color: var(--accent-color);">
-                                <svg id="spinner-icon" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="text-center mt-16 px-6 pointer-events-none">
-                            <p class="text-sm font-bold text-slate-500">아래 방향으로 당겼다 놓아보세요</p>
-                            <p class="text-xs text-slate-400 mt-2 leading-relaxed">복원력을 지닌 구체가 점성을 띄며 늘어나다가, 임계치에 다다르면 스냅 피드백과 함께 분리됩니다.</p>
-                        </div>
-                    </div>
-                </div>
+            // 배경 채우기
+            ctx.fillStyle = bColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                <!-- [컴포넌트 3] 수은 토글 스위치 -->
-                <div id="comp-toggle" class="comp-view w-full p-4 flex flex-col items-center gap-6 hidden">
-                    <div id="mercury-switch" class="gooey-layer bg-slate-100 dark:bg-slate-900/60 p-2 rounded-full w-40 h-20 relative flex items-center cursor-pointer border border-slate-200/50 dark:border-slate-800/50">
-                        <div class="absolute inset-0 rounded-full transition-all duration-500" id="toggle-track-glow" style="background-color: transparent;"></div>
-                        <div id="toggle-blob-left" class="absolute w-14 h-14 rounded-full transition-all duration-500" style="left: 8px; background-color: var(--accent-color);"></div>
-                        <div id="toggle-blob-right" class="absolute w-12 h-12 rounded-full scale-0 opacity-0 transition-all duration-500" style="right: 12px; background-color: var(--accent-color);"></div>
-                    </div>
-                    <p class="text-xs text-slate-400 text-center">두 개의 수은 구체가 결합 한도 영역 안에서 유기적으로 병합됩니다.</p>
-                </div>
+            // --- 옵션 1 렌더링 (SVG 필터 연동) ---
+            if (currentMode === 1 && particles.length > 0) {
+                ctx.save();
+                const visc = parseInt(document.getElementById('opt1-visc').value);
+                // 필터 스텐실 강도 조절
+                document.getElementById('gooey').firstElementChild.setAttribute('stdDeviation', visc);
+                canvas.style.filter = "url(#gooey)";
+                
+                ctx.fillStyle = fColor;
+                for(let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.95; // 마찰력
+                    p.vy *= 0.95;
+                    p.radius *= 0.98; // 서서히 작아짐
 
-                <!-- [컴포넌트 4] 생체 분열식 FAB 버튼 -->
-                <div id="comp-fab" class="comp-view w-full max-w-[340px] h-[340px] border border-slate-200/50 dark:border-slate-800/30 glass-panel rounded-3xl relative overflow-hidden hidden flex-col justify-end p-6">
-                    <div class="gooey-layer absolute inset-0 p-6 flex flex-col justify-end items-end">
-                        <button class="fab-sub absolute w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 24px; right: 24px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h.01"/><path d="M12 16h.01"/><path d="M12 12h.01"/><path d="M12 8h.01"/><path d="M12 4h.01"/></svg>
-                        </button>
-                        <button class="fab-sub absolute w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 24px; right: 24px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x1="12" y1="2" y2="17"/></svg>
-                        </button>
-                        <button class="fab-sub absolute w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white scale-0 transition-all duration-500" style="background-color: var(--accent-color); bottom: 24px; right: 24px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                        </button>
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
 
-                        <button id="fab-main-btn" class="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white transition-all duration-300 active:scale-90" style="background-color: var(--accent-color); z-index: 50;">
-                            <svg id="fab-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="transition-transform duration-500"><line x1="12" x1="12" y1="5" y2="19"/><line x1="5" x1="19" y1="12" y2="12"/></svg>
-                        </button>
-                    </div>
-                    <div class="absolute bottom-6 left-6 max-w-[180px] pointer-events-none">
-                        <p class="text-xs font-bold text-slate-500">Cell Division</p>
-                        <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">모체 세포에서 자식 버튼들이 끈적하게 달라붙어 분열해 나오는 구조입니다.</p>
-                    </div>
-                </div>
+                    if(p.radius < 1) particles.splice(i, 1);
+                }
+                ctx.restore();
+            } else {
+                canvas.style.filter = "none";
+            }
 
-            </div>
+            // --- 옵션 2 렌더링 (탑다운 시선 블러 융합 효과) ---
+            if (currentMode === 2 && ripples.length > 0) {
+                const blurScale = parseInt(document.getElementById('opt2-blur').value);
+                const spreadSpeed = parseInt(document.getElementById('opt2-spread').value);
 
-            <!-- 하단 컴포넌트 스위처 메뉴 구조 -->
-            <div class="w-full max-w-md flex justify-center gap-1.5 overflow-x-auto py-2 no-scrollbar z-10">
-                <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border transition-all" data-comp-idx="0" data-comp-id="comp-tab-bar">TAB NAV</button>
-                <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border transition-all" data-comp-idx="1" data-comp-id="comp-pull-refresh">PULL</button>
-                <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border transition-all" data-comp-idx="2" data-comp-id="comp-toggle">SWITCH</button>
-                <button class="comp-nav-btn px-3 py-1.5 text-[11px] font-bold rounded-xl border transition-all" data-comp-idx="3" data-comp-id="comp-fab">FAB</button>
-            </div>
-        </main>
+                for(let i = ripples.length - 1; i >= 0; i--) {
+                    let r = ripples[i];
+                    r.radius += spreadSpeed * 1.5;
+                    r.blur += blurScale * 0.15; // 퍼질수록 부드럽게 녹아듦 (블러 증가)
+                    r.alpha -= 0.01; // 천천히 투명해짐
 
-        <!-- 모바일 가림막 오버레이 -->
-        <div id="sidebar-overlay" class="fixed inset-0 bg-black/45 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0"></div>
-
-        <!-- 우측 제어 연구소 슬라이더 패널 (서랍식 배치) -->
-        <aside id="sidebar" class="fixed right-0 top-0 bottom-0 w-[300px] md:w-[360px] h-full glass-panel border-l border-slate-200/50 dark:border-slate-800/30 flex flex-col justify-between p-6 z-50 transform translate-x-full md:translate-x-0 transition-transform duration-300">
-            
-            <div class="flex flex-col h-full justify-between">
-                <!-- 설정 패널 헤더 -->
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-sm font-bold tracking-tight flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-                        Micro-Physics Control Panel
-                    </h2>
-                    <button id="sidebar-close" class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x1="6" y1="6" y2="18"/><line x1="6" x1="18" y1="6" y2="18"/></svg>
-                    </button>
-                </div>
-
-                <!-- 스크롤 가능 슬라이더 구역 -->
-                <div class="flex-grow overflow-y-auto pr-1 no-scrollbar space-y-4">
+                    ctx.save();
+                    // 레이어 단위 안전 블러 처리로 멈춤 현상 완벽 방지
+                    ctx.filter = `blur(${r.blur}px)`;
+                    ctx.globalAlpha = r.alpha;
+                    ctx.fillStyle = fColor;
                     
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>액체 점성 (Viscosity)</span><span id="v-viscosity" class="text-sky-500 font-mono">15</span></div>
-                        <input type="range" id="viscosity" min="0" max="40" step="1" value="15">
-                    </div>
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
 
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>표면 장력 (Tension)</span><span id="v-tension" class="text-sky-500 font-mono">35</span></div>
-                        <input type="range" id="tension" min="1" max="100" step="1" value="35">
-                    </div>
+                    if(r.alpha <= 0 || r.radius >= r.maxRadius) ripples.splice(i, 1);
+                }
+            }
 
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>결합 임계치 (Threshold)</span><span id="v-threshold" class="text-sky-500 font-mono">-15</span></div>
-                        <input type="range" id="threshold" min="-40" max="0" step="1" value="-15">
-                    </div>
+            // --- 옵션 3 렌더링 (휴지 모세관 현상 완전 정상화 구동) ---
+            if (currentMode === 3 && stains.length > 0) {
+                const absSpeed = parseInt(document.getElementById('opt3-speed').value);
+                
+                for(let i = stains.length - 1; i >= 0; i--) {
+                    let s = stains[i];
+                    ctx.save();
+                    ctx.fillStyle = fColor;
+                    ctx.globalAlpha = s.alpha;
+                    
+                    // 불규칙 번짐 외곽선 그리기
+                    ctx.beginPath();
+                    let finishedPoints = 0;
+                    
+                    s.points.forEach((pt, idx) => {
+                        if(pt.currentDist < pt.targetDist) {
+                            pt.currentDist += absSpeed * (0.5 + Math.random() * 0.5);
+                        } else {
+                            finishedPoints++;
+                        }
+                        
+                        // 노이즈 굴곡 추가
+                        let currentDistWithNoise = pt.currentDist + (Math.sin(Date.now()*0.01 + pt.noiseOffset) * 2);
+                        let posX = s.x + Math.cos(pt.angle) * currentDistWithNoise;
+                        let posY = s.y + Math.sin(pt.angle) * currentDistWithNoise;
+                        
+                        if(idx === 0) ctx.moveTo(posX, posY);
+                        else ctx.lineTo(posX, posY);
+                    });
+                    
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
 
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>스프링 수축 강도 (Spring)</span><span id="v-spring" class="text-sky-500 font-mono">0.45</span></div>
-                        <input type="range" id="spring" min="0" max="1.0" step="0.05" value="0.45">
-                    </div>
+                    // 다 번지면 고정상태 유지 (지우지 않고 흔적을 남김으로써 리얼함 가중)
+                    if(finishedPoints >= s.points.length) {
+                        s.alpha -= 0.002; // 서서히 휴지에 스며들어 고착화
+                        if(s.alpha <= 0.2) s.alpha = 0.2; // 얼룩 잔상 남김
+                    }
+                }
+            }
 
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>복원 감쇠량 (Damping)</span><span id="v-damping" class="text-sky-500 font-mono">0.6</span></div>
-                        <input type="range" id="damping" min="0" max="1.0" step="0.05" value="0.6">
-                    </div>
+            requestAnimationFrame(animate);
+        }
 
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>스냅 속도 (Snap Speed)</span><span id="v-snap" class="text-sky-500 font-mono">0.5s</span></div>
-                        <input type="range" id="snap" min="0" max="2.0" step="0.1" value="0.5">
-                    </div>
-
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>미세 흔들림 강도 (Wobble)</span><span id="v-wobble" class="text-sky-500 font-mono">15px</span></div>
-                        <input type="range" id="zigzag" min="0" max="60" step="2" value="15">
-                    </div>
-
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>드래그 한계치 (Pull Limit)</span><span id="v-pull" class="text-sky-500 font-mono">180px</span></div>
-                        <input type="range" id="pull" min="50" max="350" step="10" value="180">
-                    </div>
-
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>액체 코어 사이즈 (Base Size)</span><span id="v-size" class="text-sky-500 font-mono">52px</span></div>
-                        <input type="range" id="size" min="0" max="100" step="2" value="52">
-                    </div>
-
-                    <div class="control-group">
-                        <div class="label-row flex justify-between text-xs font-semibold text-slate-500 mb-1"><span>액체 메인 색상 (Hue)</span><span id="v-hue" class="text-sky-500 font-mono">200</span></div>
-                        <input type="range" id="hue" min="0" max="360" step="1" value="200">
-                    </div>
-
-                </div>
-
-                <!-- 하단 동작 버튼 -->
-                <div class="pt-4 border-t border-slate-200/50 dark:border-slate-800/30 space-y-2">
-                    <button class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs transition-all shadow-lg shadow-sky-500/10 active:scale-[0.98]" onclick="copyComponentCode()">
-                        현 상태 물성 코드로 내보내기
-                    </button>
-                    <button class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold text-xs transition-all" onclick="resetPhysics()">
-                        물리 기본값 초기화
-                    </button>
-                </div>
-
-            </div>
-
-        </aside>
-
-    </div>
-
-    <div id="toast">코드가 클립보드에 복사되었습니다!</div>
-
-    <!-- 외부 커스텀 스크립트 연결 -->
-    <script src="script.js"></script>
+        // 루프 실행
+        animate();
+    </script>
 </body>
 </html>
-
-```
