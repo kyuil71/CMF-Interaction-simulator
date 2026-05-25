@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>액체 시뮬레이션 프로토타입 v4</title>
+<title>액체 시뮬레이션 프로토타입 v5</title>
 
 <style>
 * {
@@ -40,7 +40,7 @@ canvas {
 
 #control-panel {
     width: 50vw;
-    max-width: 620px;
+    max-width: 640px;
     min-width: 420px;
     background: #202020;
     border-left: 1px solid #333;
@@ -230,6 +230,7 @@ input[type="color"] {
         <div class="control-group"><label>표면 흔들림 <span id="v-m1-wobble">4</span></label><input id="m1-wobble" type="range" min="0" max="12" value="4"></div>
         <div class="control-group"><label>마찰감 <span id="v-m1-friction">96</span></label><input id="m1-friction" type="range" min="88" max="99" value="96"></div>
         <div class="control-group"><label>사라지는 속도 <span id="v-m1-decay">8</span></label><input id="m1-decay" type="range" min="2" max="20" value="8"></div>
+        <div class="control-group"><label>잔상 유지율 <span id="v-m1-residue">0</span></label><input id="m1-residue" type="range" min="0" max="80" value="0"></div>
     </div>
 
     <div id="controls-mode2" class="mode-controls control-grid hidden">
@@ -239,6 +240,7 @@ input[type="color"] {
         <div class="control-group"><label>파문 두께 <span id="v-m2-thickness">55</span></label><input id="m2-thickness" type="range" min="20" max="90" value="55"></div>
         <div class="control-group"><label>중심 농도 <span id="v-m2-density">75</span></label><input id="m2-density" type="range" min="20" max="100" value="75"></div>
         <div class="control-group"><label>잔상 지속 <span id="v-m2-life">8</span></label><input id="m2-life" type="range" min="2" max="20" value="8"></div>
+        <div class="control-group"><label>잔상 유지율 <span id="v-m2-residue">15</span></label><input id="m2-residue" type="range" min="0" max="80" value="15"></div>
     </div>
 
     <div id="controls-mode3" class="mode-controls control-grid hidden">
@@ -248,6 +250,8 @@ input[type="color"] {
         <div class="control-group"><label>외곽 부드러움 <span id="v-m3-blur">2</span></label><input id="m3-blur" type="range" min="0" max="12" value="2"></div>
         <div class="control-group"><label>얼룩 농도 <span id="v-m3-density">85</span></label><input id="m3-density" type="range" min="20" max="100" value="85"></div>
         <div class="control-group"><label>형태 복잡도 <span id="v-m3-points">34</span></label><input id="m3-points" type="range" min="12" max="70" value="34"></div>
+        <div class="control-group"><label>사라지는 속도 <span id="v-m3-decay">5</span></label><input id="m3-decay" type="range" min="0" max="20" value="5"></div>
+        <div class="control-group"><label>잔상 유지율 <span id="v-m3-residue">35</span></label><input id="m3-residue" type="range" min="0" max="90" value="35"></div>
     </div>
 </div>
 
@@ -398,6 +402,7 @@ function createEffect(e, dragging) {
                 r: 3 + Math.random() * 6,
                 targetR: size * (0.35 + Math.random() * 1.35),
                 alpha: 1,
+                frozen: false,
                 wobble: Math.random() * Math.PI * 2,
                 decay: decayBase * (0.65 + Math.random() * 0.75)
             });
@@ -410,7 +415,8 @@ function createEffect(e, dragging) {
             r: 4,
             maxR: val("m2-force") * 3,
             blur: 0,
-            alpha: 1
+            alpha: 1,
+            frozen: false
         });
     }
 
@@ -433,7 +439,8 @@ function createEffect(e, dragging) {
         stains.push({
             x, y,
             points,
-            alpha: val("m3-density") / 100
+            alpha: val("m3-density") / 100,
+            frozen: false
         });
     }
 }
@@ -441,25 +448,33 @@ function createEffect(e, dragging) {
 function drawParticles(rgb) {
     const friction = val("m1-friction") / 100;
     const wobblePower = val("m1-wobble") * 0.08;
+    const residue = val("m1-residue") / 100;
 
     ctx.save();
-    ctx.globalCompositeOperation = "source-over";
 
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
-        p.wobble += 0.08;
-        p.x += p.vx + Math.sin(p.wobble) * wobblePower;
-        p.y += p.vy + Math.cos(p.wobble * 0.7) * wobblePower;
-        p.vx *= friction;
-        p.vy *= friction;
+        if (!p.frozen) {
+            p.wobble += 0.08;
+            p.x += p.vx + Math.sin(p.wobble) * wobblePower;
+            p.y += p.vy + Math.cos(p.wobble * 0.7) * wobblePower;
+            p.vx *= friction;
+            p.vy *= friction;
+            p.r += (p.targetR - p.r) * 0.055;
+            p.alpha -= p.decay;
+        }
 
-        p.r += (p.targetR - p.r) * 0.055;
-        p.alpha -= p.decay;
-
-        if (p.alpha <= 0 || p.r <= 0) {
-            particles.splice(i, 1);
-            continue;
+        if (p.alpha <= residue) {
+            if (residue <= 0) {
+                particles.splice(i, 1);
+                continue;
+            } else {
+                p.alpha = residue;
+                p.vx = 0;
+                p.vy = 0;
+                p.frozen = true;
+            }
         }
 
         const grad = ctx.createRadialGradient(
@@ -487,17 +502,26 @@ function drawRipples(rgb) {
     const thickness = val("m2-thickness") / 100;
     const density = val("m2-density") / 100;
     const life = val("m2-life") * 0.0015;
+    const residue = val("m2-residue") / 100;
 
     for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i];
 
-        r.r += spread;
-        r.blur += blurPower;
-        r.alpha -= life;
+        if (!r.frozen) {
+            r.r += spread;
+            r.blur += blurPower;
+            r.alpha -= life;
+        }
 
-        if (r.alpha <= 0 || r.r > r.maxR) {
-            ripples.splice(i, 1);
-            continue;
+        if (r.alpha <= residue || r.r > r.maxR) {
+            if (residue <= 0) {
+                ripples.splice(i, 1);
+                continue;
+            } else {
+                r.alpha = residue;
+                r.r = Math.min(r.r, r.maxR);
+                r.frozen = true;
+            }
         }
 
         ctx.save();
@@ -524,14 +548,18 @@ function drawRipples(rgb) {
 function drawStains(rgb) {
     const speed = val("m3-speed");
     const blur = val("m3-blur");
+    const decay = val("m3-decay") * 0.0004;
+    const residue = val("m3-residue") / 100;
 
     for (let i = stains.length - 1; i >= 0; i--) {
         const s = stains[i];
         const poly = [];
+        let finished = true;
 
         s.points.forEach(pt => {
-            if (pt.d < pt.target) {
+            if (!s.frozen && pt.d < pt.target) {
                 pt.d += speed * (0.35 + Math.random() * 0.65);
+                finished = false;
             }
 
             const wave = Math.sin(Date.now() * 0.002 + pt.seed) * pt.seed * 0.45;
@@ -542,6 +570,20 @@ function drawStains(rgb) {
                 y: s.y + Math.sin(pt.angle) * d
             });
         });
+
+        if (finished && !s.frozen) {
+            s.alpha -= decay;
+        }
+
+        if (s.alpha <= residue) {
+            if (residue <= 0) {
+                stains.splice(i, 1);
+                continue;
+            } else {
+                s.alpha = residue;
+                s.frozen = true;
+            }
+        }
 
         const maxD = Math.max(...s.points.map(pt => pt.d));
 
