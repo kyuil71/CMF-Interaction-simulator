@@ -14,9 +14,9 @@
 }
 
 body {
+    display: flex;
     width: 100vw;
     height: 100vh;
-    display: flex;
     background: #111;
     color: #fff;
     overflow: hidden;
@@ -40,17 +40,16 @@ canvas {
 
 #control-panel {
     width: 50vw;
+    max-width: 620px;
     min-width: 420px;
-    max-width: 680px;
-    height: 100vh;
-    background: #222;
+    background: #202020;
     border-left: 1px solid #333;
     padding: 22px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
-    transition: width 0.3s ease, min-width 0.3s ease, padding 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 #control-panel.collapsed {
@@ -64,21 +63,20 @@ canvas {
 #floating-toggle {
     position: absolute;
     top: 14px;
-    right: 18px;
-    z-index: 20;
+    right: 16px;
+    z-index: 50;
     background: #007bff;
     border: none;
-    color: #fff;
+    color: white;
     padding: 9px 14px;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 800;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    font-weight: 700;
 }
 
 h3 {
-    font-size: 20px;
     margin-top: 34px;
+    font-size: 20px;
 }
 
 .tabs {
@@ -89,24 +87,24 @@ h3 {
 .tab-btn {
     flex: 1;
     padding: 12px;
-    background: #333;
     border: none;
-    color: #aaa;
-    cursor: pointer;
     border-radius: 8px;
-    font-weight: 800;
+    background: #333;
+    color: #aaa;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 .tab-btn.active {
     background: #007bff;
-    color: #fff;
+    color: white;
 }
 
 .info-text {
-    color: #bbb;
     font-size: 13px;
-    line-height: 1.55;
-    background: #2b2b2b;
+    line-height: 1.5;
+    color: #bbb;
+    background: #2a2a2a;
     padding: 12px;
     border-radius: 8px;
 }
@@ -118,25 +116,24 @@ h3 {
 }
 
 .control-group {
-    background: #2a2a2a;
-    padding: 13px;
+    background: #2b2b2b;
+    padding: 12px;
     border-radius: 9px;
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 8px;
 }
 
 .control-group label {
-    font-size: 13px;
-    color: #ccc;
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    font-size: 13px;
+    color: #ccc;
 }
 
-.control-group label span {
+.control-group span {
     color: #4da3ff;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 input[type="range"] {
@@ -152,18 +149,13 @@ input[type="color"] {
 }
 
 .utility-btn {
-    background: #333;
+    padding: 11px 14px;
     border: 1px solid #444;
-    color: #fff;
-    padding: 11px 12px;
     border-radius: 8px;
+    background: #333;
+    color: white;
+    font-weight: 700;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 800;
-}
-
-.utility-btn:hover {
-    background: #444;
 }
 
 .hidden {
@@ -187,15 +179,10 @@ input[type="color"] {
     #control-panel.collapsed {
         height: 0;
         width: 100%;
-        padding: 0;
     }
 
     .control-grid {
         grid-template-columns: 1fr;
-    }
-
-    h3 {
-        margin-top: 8px;
     }
 }
 </style>
@@ -218,7 +205,7 @@ input[type="color"] {
     </div>
 
     <p class="info-text" id="mode-desc">
-        옵션 1: 점성 있는 액체 입자가 서로 끌어당기며 자연스럽게 퍼집니다.
+        옵션 1: 점성 있는 물방울들이 자연스럽게 뭉치고 퍼집니다.
     </p>
 
     <button class="utility-btn" id="resetBtn">🔄 리셋</button>
@@ -236,86 +223,382 @@ input[type="color"] {
     </div>
 
     <div id="controls-mode1" class="mode-controls control-grid">
-        <div class="control-group">
-            <label>퍼짐 속도 <span id="v-m1-speed">5</span></label>
-            <input type="range" id="m1-speed" min="1" max="12" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>점성 / 뭉침 <span id="v-m1-viscosity">7</span></label>
-            <input type="range" id="m1-viscosity" min="1" max="12" value="7">
-        </div>
-
-        <div class="control-group">
-            <label>물방울 개수 <span id="v-m1-count">36</span></label>
-            <input type="range" id="m1-count" min="6" max="90" value="36">
-        </div>
-
-        <div class="control-group">
-            <label>물방울 크기 <span id="v-m1-size">34</span></label>
-            <input type="range" id="m1-size" min="8" max="80" value="34">
-        </div>
-
-        <div class="control-group">
-            <label>표면 장력 <span id="v-m1-tension">6</span></label>
-            <input type="range" id="m1-tension" min="1" max="12" value="6">
-        </div>
-
-        <div class="control-group">
-            <label>흔들림 / 유기성 <span id="v-m1-wobble">5</span></label>
-            <input type="range" id="m1-wobble" min="0" max="12" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>잔상 유지 시간 <span id="v-m1-life">7</span></label>
-            <input type="range" id="m1-life" min="1" max="12" value="7">
-        </div>
-
-        <div class="control-group">
-            <label>중력감 <span id="v-m1-gravity">1</span></label>
-            <input type="range" id="m1-gravity" min="0" max="8" value="1">
-        </div>
+        <div class="control-group"><label>퍼짐 속도 <span id="v-m1-speed">5</span></label><input id="m1-speed" type="range" min="1" max="12" value="5"></div>
+        <div class="control-group"><label>점성 / 뭉침 <span id="v-m1-visc">18</span></label><input id="m1-visc" type="range" min="4" max="40" value="18"></div>
+        <div class="control-group"><label>물방울 개수 <span id="v-m1-count">36</span></label><input id="m1-count" type="range" min="5" max="100" value="36"></div>
+        <div class="control-group"><label>물방울 크기 <span id="v-m1-size">34</span></label><input id="m1-size" type="range" min="8" max="90" value="34"></div>
+        <div class="control-group"><label>표면 흔들림 <span id="v-m1-wobble">4</span></label><input id="m1-wobble" type="range" min="0" max="12" value="4"></div>
+        <div class="control-group"><label>마찰감 <span id="v-m1-friction">96</span></label><input id="m1-friction" type="range" min="88" max="99" value="96"></div>
+        <div class="control-group"><label>사라지는 속도 <span id="v-m1-decay">8</span></label><input id="m1-decay" type="range" min="2" max="20" value="8"></div>
     </div>
 
     <div id="controls-mode2" class="mode-controls control-grid hidden">
-        <div class="control-group">
-            <label>파문 확산 속도 <span id="v-m2-spread">5</span></label>
-            <input type="range" id="m2-spread" min="1" max="12" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>충격 크기 <span id="v-m2-force">48</span></label>
-            <input type="range" id="m2-force" min="20" max="120" value="48">
-        </div>
-
-        <div class="control-group">
-            <label>블러 강도 <span id="v-m2-blur">5</span></label>
-            <input type="range" id="m2-blur" min="0" max="18" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>사라지는 속도 <span id="v-m2-fade">5</span></label>
-            <input type="range" id="m2-fade" min="1" max="12" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>중앙 농도 <span id="v-m2-density">7</span></label>
-            <input type="range" id="m2-density" min="1" max="12" value="7">
-        </div>
-
-        <div class="control-group">
-            <label>외곽 부드러움 <span id="v-m2-softness">8</span></label>
-            <input type="range" id="m2-softness" min="1" max="12" value="8">
-        </div>
-
-        <div class="control-group">
-            <label>파문 두께 <span id="v-m2-thickness">6</span></label>
-            <input type="range" id="m2-thickness" min="1" max="12" value="6">
-        </div>
+        <div class="control-group"><label>파문 확산 속도 <span id="v-m2-spread">5</span></label><input id="m2-spread" type="range" min="1" max="14" value="5"></div>
+        <div class="control-group"><label>블러 강도 <span id="v-m2-blur">5</span></label><input id="m2-blur" type="range" min="0" max="18" value="5"></div>
+        <div class="control-group"><label>충격 크기 <span id="v-m2-force">55</span></label><input id="m2-force" type="range" min="20" max="140" value="55"></div>
+        <div class="control-group"><label>파문 두께 <span id="v-m2-thickness">55</span></label><input id="m2-thickness" type="range" min="20" max="90" value="55"></div>
+        <div class="control-group"><label>중심 농도 <span id="v-m2-density">75</span></label><input id="m2-density" type="range" min="20" max="100" value="75"></div>
+        <div class="control-group"><label>잔상 지속 <span id="v-m2-life">8</span></label><input id="m2-life" type="range" min="2" max="20" value="8"></div>
     </div>
 
     <div id="controls-mode3" class="mode-controls control-grid hidden">
-        <div class="control-group">
-            <label>흡수 속도 <span id="v-m3-speed">3</span></label>
-            <input type="range" id="m3-speed" min="1" max="8" value="3">
-        </div>
+        <div class="control-group"><label>흡수 속도 <span id="v-m3-speed">2</span></label><input id="m3-speed" type="range" min="1" max="8" value="2"></div>
+        <div class="control-group"><label>섬유 불규칙도 <span id="v-m3-noise">12</span></label><input id="m3-noise" type="range" min="1" max="35" value="12"></div>
+        <div class="control-group"><label>번짐 범위 <span id="v-m3-limit">170</span></label><input id="m3-limit" type="range" min="40" max="380" value="170"></div>
+        <div class="control-group"><label>외곽 부드러움 <span id="v-m3-blur">2</span></label><input id="m3-blur" type="range" min="0" max="12" value="2"></div>
+        <div class="control-group"><label>얼룩 농도 <span id="v-m3-density">85</span></label><input id="m3-density" type="range" min="20" max="100" value="85"></div>
+        <div class="control-group"><label>형태 복잡도 <span id="v-m3-points">34</span></label><input id="m3-points" type="range" min="12" max="70" value="34"></div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("simCanvas");
+const ctx = canvas.getContext("2d");
+const panel = document.getElementById("control-panel");
+const toggleBtn = document.getElementById("floating-toggle");
+
+let currentMode = 1;
+let particles = [];
+let ripples = [];
+let stains = [];
+
+function el(id) {
+    return document.getElementById(id);
+}
+
+function val(id) {
+    return Number(el(id).value);
+}
+
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener("resize", resizeCanvas);
+setTimeout(resizeCanvas, 50);
+
+function hexToRgb(hex) {
+    let c = hex.replace("#", "");
+    if (c.length === 3) c = c.split("").map(x => x + x).join("");
+    const n = parseInt(c, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function resetSimulation() {
+    particles = [];
+    ripples = [];
+    stains = [];
+}
+
+el("resetBtn").addEventListener("click", resetSimulation);
+
+toggleBtn.addEventListener("click", () => {
+    panel.classList.toggle("collapsed");
+    toggleBtn.textContent = panel.classList.contains("collapsed")
+        ? "설정창 열기 ▶"
+        : "설정창 접기 ◀";
+    setTimeout(resizeCanvas, 350);
+});
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        switchMode(Number(btn.dataset.mode));
+    });
+});
+
+function switchMode(mode) {
+    currentMode = mode;
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", Number(btn.dataset.mode) === mode);
+    });
+
+    el("controls-mode1").classList.toggle("hidden", mode !== 1);
+    el("controls-mode2").classList.toggle("hidden", mode !== 2);
+    el("controls-mode3").classList.toggle("hidden", mode !== 3);
+
+    if (mode === 1) {
+        el("mode-desc").textContent = "옵션 1: 점성 있는 물방울들이 자연스럽게 뭉치고 퍼집니다.";
+        el("fluidColor").value = "#ffffff";
+        el("bgColor").value = "#222222";
+    }
+
+    if (mode === 2) {
+        el("mode-desc").textContent = "옵션 2: 표면 위로 액체가 떨어져 부드러운 파문과 흐림을 만듭니다.";
+        el("fluidColor").value = "#111111";
+        el("bgColor").value = "#ffffff";
+    }
+
+    if (mode === 3) {
+        el("mode-desc").textContent = "옵션 3: 휴지나 섬유에 액체가 천천히 스며드는 번짐 효과입니다.";
+        el("fluidColor").value = "#4a3c31";
+        el("bgColor").value = "#f4f1ea";
+    }
+
+    resetSimulation();
+}
+
+document.querySelectorAll("input[type='range']").forEach(input => {
+    const valueText = el("v-" + input.id);
+    if (valueText) {
+        valueText.textContent = input.value;
+        input.addEventListener("input", () => {
+            valueText.textContent = input.value;
+        });
+    }
+});
+
+function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+canvas.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    createEffect(e, false);
+});
+
+canvas.addEventListener("pointermove", e => {
+    if (e.buttons === 1 || e.pointerType === "touch") {
+        e.preventDefault();
+        createEffect(e, true);
+    }
+});
+
+function createEffect(e, dragging) {
+    const p = pointerPos(e);
+    const x = p.x;
+    const y = p.y;
+
+    if (currentMode === 1) {
+        const baseCount = val("m1-count");
+        const count = dragging ? Math.max(2, Math.floor(baseCount * 0.12)) : baseCount;
+        const speed = val("m1-speed") * 0.26;
+        const size = val("m1-size");
+        const decayBase = val("m1-decay") * 0.001;
+
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const force = (0.6 + Math.random() * 4.2) * speed * Math.pow(Math.random(), 1.25);
+
+            particles.push({
+                x: x + (Math.random() - 0.5) * 18,
+                y: y + (Math.random() - 0.5) * 18,
+                vx: Math.cos(angle) * force,
+                vy: Math.sin(angle) * force,
+                r: 3 + Math.random() * 6,
+                targetR: size * (0.35 + Math.random() * 1.35),
+                alpha: 1,
+                wobble: Math.random() * Math.PI * 2,
+                decay: decayBase * (0.65 + Math.random() * 0.75)
+            });
+        }
+    }
+
+    if (currentMode === 2) {
+        ripples.push({
+            x, y,
+            r: 4,
+            maxR: val("m2-force") * 3,
+            blur: 0,
+            alpha: 1
+        });
+    }
+
+    if (currentMode === 3) {
+        const limit = val("m3-limit");
+        const noise = val("m3-noise");
+        const count = val("m3-points");
+        const points = [];
+
+        for (let i = 0; i < count; i++) {
+            const angle = i / count * Math.PI * 2;
+            points.push({
+                angle,
+                d: 4,
+                target: limit * (0.55 + Math.random() * 0.6),
+                seed: Math.random() * noise
+            });
+        }
+
+        stains.push({
+            x, y,
+            points,
+            alpha: val("m3-density") / 100
+        });
+    }
+}
+
+function drawParticles(rgb) {
+    const friction = val("m1-friction") / 100;
+    const wobblePower = val("m1-wobble") * 0.08;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        p.wobble += 0.08;
+        p.x += p.vx + Math.sin(p.wobble) * wobblePower;
+        p.y += p.vy + Math.cos(p.wobble * 0.7) * wobblePower;
+        p.vx *= friction;
+        p.vy *= friction;
+
+        p.r += (p.targetR - p.r) * 0.055;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0 || p.r <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
+
+        const grad = ctx.createRadialGradient(
+            p.x, p.y, p.r * 0.08,
+            p.x, p.y, p.r
+        );
+
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${p.alpha})`);
+        grad.addColorStop(0.5, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${p.alpha * 0.75})`);
+        grad.addColorStop(0.85, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${p.alpha * 0.22})`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+function drawRipples(rgb) {
+    const spread = val("m2-spread") * 1.2;
+    const blurPower = val("m2-blur") * 0.12;
+    const thickness = val("m2-thickness") / 100;
+    const density = val("m2-density") / 100;
+    const life = val("m2-life") * 0.0015;
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+
+        r.r += spread;
+        r.blur += blurPower;
+        r.alpha -= life;
+
+        if (r.alpha <= 0 || r.r > r.maxR) {
+            ripples.splice(i, 1);
+            continue;
+        }
+
+        ctx.save();
+        ctx.filter = `blur(${r.blur}px)`;
+        ctx.globalAlpha = r.alpha;
+
+        const grad = ctx.createRadialGradient(
+            r.x, r.y, r.r * 0.1,
+            r.x, r.y, r.r
+        );
+
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${density})`);
+        grad.addColorStop(thickness, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${density * 0.55})`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawStains(rgb) {
+    const speed = val("m3-speed");
+    const blur = val("m3-blur");
+
+    for (let i = stains.length - 1; i >= 0; i--) {
+        const s = stains[i];
+        const poly = [];
+
+        s.points.forEach(pt => {
+            if (pt.d < pt.target) {
+                pt.d += speed * (0.35 + Math.random() * 0.65);
+            }
+
+            const wave = Math.sin(Date.now() * 0.002 + pt.seed) * pt.seed * 0.45;
+            const d = pt.d + wave;
+
+            poly.push({
+                x: s.x + Math.cos(pt.angle) * d,
+                y: s.y + Math.sin(pt.angle) * d
+            });
+        });
+
+        const maxD = Math.max(...s.points.map(pt => pt.d));
+
+        ctx.save();
+        ctx.filter = `blur(${blur}px)`;
+
+        const grad = ctx.createRadialGradient(
+            s.x, s.y, maxD * 0.12,
+            s.x, s.y, maxD + 12
+        );
+
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${s.alpha})`);
+        grad.addColorStop(0.65, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${s.alpha * 0.72})`);
+        grad.addColorStop(0.92, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${s.alpha * 0.22})`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+
+        if (poly.length > 0) {
+            ctx.moveTo(poly[0].x, poly[0].y);
+            for (let j = 0; j < poly.length; j++) {
+                const a = poly[j];
+                const b = poly[(j + 1) % poly.length];
+                const mx = (a.x + b.x) / 2;
+                const my = (a.y + b.y) / 2;
+                ctx.quadraticCurveTo(a.x, a.y, mx, my);
+            }
+        }
+
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function animate() {
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    const bg = el("bgColor").value;
+    const rgb = hexToRgb(el("fluidColor").value);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    if (currentMode === 1) drawParticles(rgb);
+    if (currentMode === 2) drawRipples(rgb);
+    if (currentMode === 3) drawStains(rgb);
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+
+</body>
+</html>
